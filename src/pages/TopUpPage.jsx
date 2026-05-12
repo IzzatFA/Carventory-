@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Check, CreditCard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { formatRupiah } from '../lib/mockData';
+import { formatRupiah } from '../lib/utils';
 import './TopUpPage.css';
 
 const QUICK_AMOUNTS = [1000000, 2500000, 5000000, 10000000];
@@ -45,13 +45,15 @@ export default function TopUpPage() {
     setStep(2);
   };
 
-  const handlePay = () => {
+  const handlePay = async () => {
     setLoading(true);
-    setTimeout(() => {
-      topUp(topUpAmount);
-      setLoading(false);
+    const res = await topUp(topUpAmount);
+    setLoading(false);
+    if (res?.success) {
       setStep(3);
-    }, 900);
+    } else {
+      alert(res?.error || 'Top up gagal');
+    }
   };
 
   if (step === 3) {

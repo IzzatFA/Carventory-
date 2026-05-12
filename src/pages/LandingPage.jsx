@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Zap, TrendingUp, ArrowRight, Star } from 'lucide-react';
-import { mockCars, mockAuctions } from '../lib/mockData';
+import { useAuction } from '../context/AuctionContext';
 import CarCard from '../components/CarCard';
 import { useAuth } from '../context/AuthContext';
 import './LandingPage.css';
@@ -18,12 +18,12 @@ const mapToCardData = (car, auction) => {
 
   return {
     id: car.id,
-    namaMobil: car.name,
-    hargaAwal: car.initial_price,
+    namaMobil: car.model ? `${car.brand} ${car.model}` : car.name,
+    hargaAwal: car.starting_price || car.initial_price,
     hargaTertinggi: auction?.current_highest_bid || 0,
     waktuLelangSelesai: auction?.end_time,
     gambarMobil: car.image_url,
-    lokasi: car.location,
+    lokasi: car.location || 'Jakarta',
     statusLelang: auction?.status
   };
 };
@@ -31,7 +31,9 @@ const mapToCardData = (car, auction) => {
 export default function LandingPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const active = mockAuctions.filter(a => a.status === 'active');
+  const { cars, auctions } = useAuction();
+  
+  const active = auctions.filter(a => a.status === 'active');
   const trending = active.slice(0, 3);
   const heroCta = currentUser
     ? { label: 'Jelajahi Mobil', path: '/catalog' }
@@ -99,7 +101,7 @@ export default function LandingPage() {
 
           <div className="trending-carousel">
             {trending.map(auc => {
-              const car = mockCars.find(c => c.id === auc.car_id);
+              const car = cars.find(c => c.id === auc.car_id);
               const cardData = mapToCardData(car, auc);
 
               return cardData ? <CarCard key={auc.id} data={cardData} /> : null;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle,
@@ -12,13 +12,23 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
-import { formatRupiah, mockTransactions } from '../lib/mockData';
+import { formatRupiah } from '../lib/utils';
+import api from '../lib/api';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
   const { getUserBids, auctions } = useAuction();
   const navigate = useNavigate();
+  const [recentTransactions, setRecentTransactions] = useState([]);
+
+  useEffect(() => {
+    if (currentUser) {
+      api.get('/transactions/my')
+        .then(res => setRecentTransactions(res.data.data || []))
+        .catch(err => console.error('Failed to fetch transactions', err));
+    }
+  }, [currentUser]);
 
   if (!currentUser) {
     return (
@@ -37,16 +47,13 @@ export default function ProfilePage() {
   }
 
   const myBids = getUserBids(currentUser.id);
-  const recentTransactions = mockTransactions
-    .filter((transaction) => transaction.user_id === currentUser.id)
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const won = myBids.filter((bid) => {
     const auction = auctions.find((item) => item.id === bid.auction_id);
     return auction?.status === 'ended' && auction?.winner_id === currentUser.id;
   }).length;
 
-  const displayName = currentUser.name || 'User';
+  const displayName = currentUser.username || currentUser.name || 'User';
   const roleLabel = currentUser.role === 'admin' ? 'Admin' : 'Pengguna';
 
   const handleLogout = () => {
@@ -75,8 +82,8 @@ export default function ProfilePage() {
               </div>
 
               <div className="profile-status-row">
-                <span className={`profile-pill ${currentUser.is_verified ? 'verified' : 'warning'}`}>
-                  {currentUser.is_verified ? 'Terverifikasi' : 'Belum Verifikasi'}
+                <span className={`profile-pill verified`}>
+                  {currentUser.is_verified !== false ? 'Terverifikasi' : 'Belum Verifikasi'}
                 </span>
 
                 <span className="profile-pill role">
@@ -135,9 +142,9 @@ export default function ProfilePage() {
               ) : (
                 <div className="profile-activity-list">
                   {recentTransactions.map((transaction) => {
-                    const status = transaction.status === 'paid'
+                    const status = transaction.payment_status === 'paid'
                       ? { label: 'Berhasil', className: 'success', icon: CheckCircle }
-                      : transaction.status === 'failed'
+                      : transaction.payment_status === 'failed'
                         ? { label: 'Gagal', className: 'danger', icon: XCircle }
                         : { label: 'Proses', className: 'warning', icon: Clock3 };
                     const StatusIcon = status.icon;
@@ -158,8 +165,8 @@ export default function ProfilePage() {
                           </div>
 
                           <span className="profile-activity-amount">+{formatRupiah(transaction.amount)}</span>
-                          <time dateTime={transaction.created_at}>
-                            {new Date(transaction.created_at).toLocaleDateString('id-ID', {
+                          <time dateTime={transaction.transaction_date || transaction.created_at}>
+                            {new Date(transaction.transaction_date || transaction.created_at).toLocaleDateString('id-ID', {
                               day: 'numeric',
                               month: 'long',
                               year: 'numeric',

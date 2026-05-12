@@ -1,32 +1,39 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gavel, Clock, TrendingUp } from 'lucide-react';
-import { mockCars, mockAuctions, formatRupiah } from '../lib/mockData';
+import { formatRupiah } from '../lib/utils';
+import { useAuction } from '../context/AuctionContext';
 import BidTimer from '../components/BidTimer';
 
 export default function AuctionsPage() {
   const navigate = useNavigate();
-  const active = mockAuctions.filter(a => a.status === 'active');
-  const upcoming = mockAuctions.filter(a => a.status === 'upcoming');
-  const ended = mockAuctions.filter(a => a.status === 'ended');
+  const { cars, auctions } = useAuction();
+  
+  const active = auctions.filter(a => a.status === 'active');
+  const upcoming = auctions.filter(a => a.status === 'upcoming');
+  const ended = auctions.filter(a => a.status === 'ended');
 
   const AucRow = ({ auc }) => {
-    const car = mockCars.find(c => c.id === auc.car_id);
+    const car = cars.find(c => String(c.id) === String(auc.car_id));
     if (!car) return null;
+    
+    const carName = car.model ? `${car.brand} ${car.model}` : car.name;
+    const initialPrice = car.starting_price || car.initial_price;
+    
     return (
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 16, display: 'flex', gap: 16, alignItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
         onClick={() => navigate(auc.status === 'active' ? `/auctions/${auc.id}` : `/cars/${car.id}`)}
         onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--orange)'}
         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
-        <img src={car.image_url} alt={car.name} style={{ width: 100, height: 70, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+        <img src={car.image_url} alt={carName} style={{ width: 100, height: 70, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
           onError={e => { e.target.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=200'; }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             {auc.status === 'active' && <><span className="live-dot" /><span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>LIVE</span></>}
             <span className={`badge cat-${car.category}`}>{car.category}</span>
           </div>
-          <div style={{ fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{car.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--text3)' }}>Harga Awal: {formatRupiah(car.initial_price)}</div>
+          <div style={{ fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{carName}</div>
+          <div style={{ fontSize: 13, color: 'var(--text3)' }}>Harga Awal: {formatRupiah(initialPrice)}</div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--orange)', marginBottom: 6 }}>{formatRupiah(auc.current_highest_bid)}</div>

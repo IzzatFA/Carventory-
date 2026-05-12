@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { Car, Users, Gavel, Plus, Edit, Trash2, ShieldCheck, ShieldOff, Ban } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
-import { mockCars, mockAuctions, formatRupiah, categoryLabel } from '../../lib/mockData';
+import { formatRupiah, categoryLabel } from '../../lib/utils';
+import api from '../../lib/api';
 
 export default function AdminDashboard() {
   const { currentUser, users, updateUser } = useAuth();
-  const { auctions } = useAuction();
+  const { cars, auctions, setCars } = useAuction();
   const navigate = useNavigate();
   const [tab, setTab] = useState('overview');
-  const [cars, setCars] = useState(mockCars);
   const [showAddCar, setShowAddCar] = useState(false);
-  const [newCar, setNewCar] = useState({ name:'', category:'penumpang', chassis_number:'', engine_number:'', initial_price:'', image_url:'', description:'' });
+  const [newCar, setNewCar] = useState({ brand:'', model:'', category:'penumpang', chassis_number:'', engine_number:'', starting_price:'', image_url:'', description:'' });
   const [msg, setMsg] = useState('');
 
   if (!currentUser || currentUser.role !== 'admin') {
@@ -20,19 +20,37 @@ export default function AdminDashboard() {
   }
 
   const activeAuctions = auctions.filter(a => a.status === 'active').length;
-  const verifiedUsers = users.filter(u => u.is_verified && u.role !== 'admin').length;
+  const verifiedUsers = users.filter(u => u.is_verified !== false && u.role !== 'admin').length;
 
-  const handleAddCar = (e) => {
+  const handleAddCar = async (e) => {
     e.preventDefault();
-    const car = { ...newCar, id: `car-${Date.now()}`, is_verified: true, initial_price: parseInt(newCar.initial_price), created_at: new Date().toISOString() };
-    setCars(prev => [...prev, car]);
-    setShowAddCar(false);
-    setNewCar({ name:'', category:'penumpang', chassis_number:'', engine_number:'', initial_price:'', image_url:'', description:'' });
-    setMsg('Kendaraan berhasil ditambahkan!');
-    setTimeout(() => setMsg(''), 3000);
+    try {
+      const res = await api.post('/cars', {
+        ...newCar,
+        starting_price: parseInt(newCar.starting_price)
+      });
+      if (res.data?.data) {
+        setCars(prev => [...prev, res.data.data]);
+        setShowAddCar(false);
+        setNewCar({ brand:'', model:'', category:'penumpang', chassis_number:'', engine_number:'', starting_price:'', image_url:'', description:'' });
+        setMsg('Kendaraan berhasil ditambahkan!');
+        setTimeout(() => setMsg(''), 3000);
+      }
+    } catch (err) {
+      alert('Gagal menambah kendaraan');
+    }
   };
 
-  const deleteCar = (id) => { if (window.confirm('Hapus kendaraan ini?')) setCars(prev => prev.filter(c => c.id !== id)); };
+  const deleteCar = async (id) => { 
+    if (window.confirm('Hapus kendaraan ini?')) {
+      try {
+        await api.delete(`/cars/${id}`);
+        setCars(prev => prev.filter(c => c.id !== id));
+      } catch (err) {
+        alert('Gagal menghapus kendaraan');
+      }
+    }
+  };
 
   const toggleVerify = (user) => { updateUser({ ...user, is_verified: !user.is_verified }); };
   const toggleSuspend = (user) => { updateUser({ ...user, is_suspended: !user.is_suspended }); };
@@ -80,10 +98,10 @@ export default function AdminDashboard() {
                 <div key={car.id} style={{ display:'flex', gap:10, alignItems:'center', padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
                   <img src={car.image_url} alt="" style={{ width:44, height:34, borderRadius:6, objectFit:'cover' }} onError={e=>{e.target.style.display='none'}} />
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:13, fontWeight:600 }}>{car.name}</div>
-                    <div style={{ fontSize:11, color:'var(--text3)' }}>{formatRupiah(car.initial_price)}</div>
+                    <div style={{ fontSize:13, fontWeight:600 }}>{car.model ? `${car.brand} ${car.model}` : car.name}</div>
+                    <div style={{ fontSize:11, color:'var(--text3)' }}>{formatRupiah(car.starting_price || car.initial_price)}</div>
                   </div>
-                  <span className={`badge cat-${car.category}`}>{categoryLabel[car.category]}</span>
+                  <span className={`badge cat-${car.category}`}>{categoryLabel[car.category] || car.category}</span>
                 </div>
               ))}
             </div>
@@ -116,7 +134,7 @@ export default function AdminDashboard() {
                 <div className="modal-header"><span className="modal-title">Tambah Kendaraan</span><button onClick={()=>setShowAddCar(false)} style={{ background:'none', border:'none', color:'var(--text3)', cursor:'pointer', fontSize:20 }}>×</button></div>
                 <form onSubmit={handleAddCar}>
                   <div className="modal-body" style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    {[['name','Nama Kendaraan','text',true],['chassis_number','No. Rangka','text',true],['engine_number','No. Mesin','text',true],['initial_price','Harga Awal (Rp)','number',true],['image_url','URL Gambar','url',false],['description','Deskripsi','text',false]].map(([k,label,type,req]) => (
+                    {[['brand','Brand Kendaraan','text',true], ['model','Model Kendaraan','text',true],['chassis_number','No. Rangka','text',true],['engine_number','No. Mesin','text',true],['starting_price','Harga Awal (Rp)','number',true],['image_url','URL Gambar','url',false],['description','Deskripsi','text',false]].map(([k,label,type,req]) => (
                       <div key={k}>
                         <label className="input-label">{label}</label>
                         {k==='description'
@@ -151,13 +169,13 @@ export default function AdminDashboard() {
                     <td>
                       <div style={{ display:'flex', gap:10, alignItems:'center' }}>
                         <img src={car.image_url} alt="" style={{ width:44, height:34, borderRadius:6, objectFit:'cover' }} onError={e=>{e.target.style.display='none'}} />
-                        <span style={{ fontWeight:600, fontSize:13 }}>{car.name}</span>
+                        <span style={{ fontWeight:600, fontSize:13 }}>{car.model ? `${car.brand} ${car.model}` : car.name}</span>
                       </div>
                     </td>
-                    <td><span className={`badge cat-${car.category}`}>{categoryLabel[car.category]}</span></td>
-                    <td style={{ fontWeight:700, color:'var(--orange)' }}>{formatRupiah(car.initial_price)}</td>
-                    <td style={{ fontFamily:'monospace', fontSize:11 }}>{car.chassis_number}</td>
-                    <td>{car.is_verified ? <span className="badge badge-success">Terverifikasi</span> : <span className="badge badge-warning">Belum</span>}</td>
+                    <td><span className={`badge cat-${car.category}`}>{categoryLabel[car.category] || car.category}</span></td>
+                    <td style={{ fontWeight:700, color:'var(--orange)' }}>{formatRupiah(car.starting_price || car.initial_price)}</td>
+                    <td style={{ fontFamily:'monospace', fontSize:11 }}>{car.chassis_number || '-'}</td>
+                    <td>{car.is_verified !== false ? <span className="badge badge-success">Terverifikasi</span> : <span className="badge badge-warning">Belum</span>}</td>
                     <td>
                       <div style={{ display:'flex', gap:8 }}>
                         <button className="btn btn-ghost btn-sm" title="Edit"><Edit size={13}/></button>
@@ -180,19 +198,19 @@ export default function AdminDashboard() {
             <tbody>
               {users.filter(u=>u.role!=='admin').map(u => (
                 <tr key={u.id}>
-                  <td style={{ fontWeight:600 }}>{u.name}</td>
+                  <td style={{ fontWeight:600 }}>{u.username || u.name}</td>
                   <td style={{ color:'var(--text3)', fontSize:13 }}>{u.email}</td>
-                  <td style={{ fontSize:12 }}>{u.phone}</td>
+                  <td style={{ fontSize:12 }}>{u.phone || '-'}</td>
                   <td>
                     <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                      {u.is_verified ? <span className="badge badge-success">Terverifikasi</span> : <span className="badge badge-warning">Belum Verifikasi</span>}
+                      {u.is_verified !== false ? <span className="badge badge-success">Terverifikasi</span> : <span className="badge badge-warning">Belum Verifikasi</span>}
                       {u.is_suspended && <span className="badge badge-danger">Ditangguhkan</span>}
                     </div>
                   </td>
                   <td>
                     <div style={{ display:'flex', gap:8 }}>
-                      <button className={`btn btn-sm ${u.is_verified?'btn-ghost':'btn-success'}`} onClick={()=>toggleVerify(u)}>
-                        {u.is_verified ? <><ShieldOff size={12}/> Batal</> : <><ShieldCheck size={12}/> Verifikasi</>}
+                      <button className={`btn btn-sm ${u.is_verified !== false ?'btn-ghost':'btn-success'}`} onClick={()=>toggleVerify(u)}>
+                        {u.is_verified !== false ? <><ShieldOff size={12}/> Batal</> : <><ShieldCheck size={12}/> Verifikasi</>}
                       </button>
                       <button className={`btn btn-sm ${u.is_suspended?'btn-ghost':'btn-danger'}`} onClick={()=>toggleSuspend(u)}>
                         <Ban size={12}/> {u.is_suspended?'Aktifkan':'Tangguhkan'}
@@ -213,10 +231,11 @@ export default function AdminDashboard() {
             <thead><tr><th>Kendaraan</th><th>Penawaran Tertinggi</th><th>Status</th><th>Berakhir</th></tr></thead>
             <tbody>
               {auctions.map(auc => {
-                const car = mockCars.find(c=>c.id===auc.car_id);
+                const car = cars.find(c=>String(c.id)===String(auc.car_id));
+                const carName = car ? (car.model ? `${car.brand} ${car.model}` : car.name) : '-';
                 return (
                   <tr key={auc.id}>
-                    <td style={{ fontWeight:600 }}>{car?.name||'-'}</td>
+                    <td style={{ fontWeight:600 }}>{carName}</td>
                     <td style={{ color:'var(--orange)', fontWeight:700 }}>{formatRupiah(auc.current_highest_bid)}</td>
                     <td>
                       {auc.status==='active' && <span className="badge badge-success">Aktif</span>}
