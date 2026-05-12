@@ -1,213 +1,315 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShieldCheck, Gavel, ArrowLeft, AlertCircle, Cpu, Info, Wrench, TrendingUp } from 'lucide-react';
-import { mockCars, mockAuctions, formatRupiah, categoryLabel } from '../lib/mockData';
+import { ArrowLeft, AlertCircle, Gavel, Info, MapPin, ShieldCheck, TrendingUp } from 'lucide-react';
+import { mockCars, formatRupiah, categoryLabel } from '../lib/mockData';
 import { useAuth } from '../context/AuthContext';
+import { useAuction } from '../context/AuctionContext';
 import BidTimer from '../components/BidTimer';
+import './CarDetailPage.css';
 
 export default function CarDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const car = mockCars.find(c => c.id === id);
-  const auction = mockAuctions.find(a => a.car_id === id);
+  const { auctions, getAuctionBids, placeBid } = useAuction();
 
-  if (!car) return (
-    <div className="page"><div className="empty-state"><div className="empty-state-icon">❌</div><h3>Kendaraan tidak ditemukan</h3><button className="btn btn-primary" style={{marginTop:16}} onClick={() => navigate('/catalog')}>Kembali ke Katalog</button></div></div>
-  );
+  const car = mockCars.find((c) => c.id === id);
+  const auction = auctions.find((a) => a.car_id === id);
+  const bids = auction ? getAuctionBids(auction.id) : [];
 
-  const statusMap = { active: { label: 'Lelang Aktif', color: 'var(--success)' }, upcoming: { label: 'Segera Dibuka', color: 'var(--info)' }, ended: { label: 'Lelang Berakhir', color: 'var(--text3)' } };
-  const st = auction ? statusMap[auction.status] : null;
+  const [bidAmount, setBidAmount] = useState('');
+  const [bidError, setBidError] = useState('');
+  const [bidSuccess, setBidSuccess] = useState('');
+
+  if (!car) {
+    return (
+      <div className="page">
+        <div className="empty-state">
+          <AlertCircle size={46} className="car-detail-empty-icon" />
+          <h3>Kendaraan tidak ditemukan</h3>
+          <button className="btn btn-primary car-detail-empty-action" onClick={() => navigate('/catalog')}>
+            Kembali ke Katalog
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const minBid = auction ? (auction.current_highest_bid || car.initial_price) + 500000 : car.initial_price;
+  const statusMap = {
+    active: 'Lelang Aktif',
+    upcoming: 'Segera Dibuka',
+    ended: 'Lelang Berakhir',
+  };
+  const auctionStatus = auction ? statusMap[auction.status] : null;
+
+  const handleBidChange = (event) => {
+    setBidAmount(event.target.value.replace(/\D/g, ''));
+    setBidError('');
+    setBidSuccess('');
+  };
+
+  const handleBidSubmit = (event) => {
+    event.preventDefault();
+    setBidError('');
+    setBidSuccess('');
+
+    if (!auction || auction.status !== 'active') return;
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    if (!currentUser.is_verified) {
+      setBidError('Akun Anda belum diverifikasi admin.');
+      return;
+    }
+
+    const amount = Number(bidAmount);
+    if (!amount) {
+      setBidError('Masukkan jumlah penawaran terlebih dahulu.');
+      return;
+    }
+    if (amount < minBid) {
+      setBidError(`Penawaran minimum adalah ${formatRupiah(minBid)}.`);
+      return;
+    }
+
+    const result = placeBid(auction.id, currentUser.id, car.id, amount, currentUser.deposit_balance);
+    if (!result.success) {
+      setBidError(result.error);
+      return;
+    }
+
+    setBidSuccess(`Penawaran ${formatRupiah(amount)} berhasil masuk.`);
+    setBidAmount('');
+  };
 
   return (
-    <div>
-      {/* ── Breadcrumb ── */}
-      <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)' }}>
-        <div className="container" style={{ padding: '12px 24px' }}>
+    <div className="car-detail-page">
+      <div className="car-detail-topbar">
+        <div className="container car-detail-topbar-inner">
           <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>
             <ArrowLeft size={14} /> Kembali
           </button>
         </div>
       </div>
 
-      {/* ── Hero: Image + Auction Panel ── */}
-      <div className="detail-hero">
+      <section className="detail-hero">
         <div className="detail-hero-inner">
-          {/* Image */}
-          <div className="detail-img-wrap">
-            <img src={car.image_url} alt={car.name} className="detail-img"
-              onError={e => { e.target.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800'; }} />
-            <div className="detail-img-badges">
-              <span className={`badge cat-${car.category}`}>{categoryLabel[car.category]}</span>
-              {car.is_verified && <span className="badge badge-success">✓ Terverifikasi</span>}
-              {auction?.status === 'active' && (
-                <span className="badge badge-success" style={{ gap: 6 }}><span className="live-dot" />LIVE</span>
-              )}
+          <div className="detail-showcase">
+            <div className="detail-img-wrap">
+              <img
+                src={car.image_url}
+                alt={car.name}
+                className="detail-img"
+                onError={(event) => {
+                  event.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=900';
+                }}
+              />
+              <div className="detail-img-badges">
+                <span className={`badge cat-${car.category}`}>{categoryLabel[car.category]}</span>
+                {car.is_verified && <span className="badge badge-success">Terverifikasi</span>}
+                {auction?.status === 'active' && (
+                  <span className="badge badge-success detail-live-badge">
+                    <span className="live-dot" /> LIVE
+                  </span>
+                )}
+              </div>
+              <div className="detail-img-caption">
+                <h1>{car.name}</h1>
+                <p>
+                  <MapPin size={14} /> {car.location}
+                </p>
+              </div>
+            </div>
+
+            <div className="detail-highlight-grid">
+              <div className="detail-highlight-card">
+                <span>Kategori</span>
+                <strong>{categoryLabel[car.category]}</strong>
+              </div>
+              <div className="detail-highlight-card">
+                <span>Harga Awal</span>
+                <strong>{formatRupiah(car.initial_price)}</strong>
+              </div>
+              <div className="detail-highlight-card">
+                <span>Status</span>
+                <strong>{car.is_verified ? 'Terverifikasi' : 'Pending'}</strong>
+              </div>
             </div>
           </div>
 
-          {/* Auction Panel */}
-          <div className="auction-panel">
-            <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 16, lineHeight: 1.3 }}>{car.name}</h1>
-
-            {/* Price block */}
-            <div style={{ background: 'linear-gradient(135deg,rgba(249,115,22,.12),rgba(249,115,22,.04))', border: '1px solid rgba(249,115,22,.25)', borderRadius: 14, padding: 20, marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>Harga Awal</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text2)', marginBottom: 12 }}>{formatRupiah(car.initial_price)}</div>
-              {auction && (
-                <>
-                  <div style={{ height: 1, background: 'rgba(249,115,22,.2)', marginBottom: 12 }} />
-                  <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>
-                    {auction.status === 'ended' ? 'Harga Akhir' : 'Penawaran Tertinggi'}
-                  </div>
-                  <div style={{ fontSize: 30, fontWeight: 900, color: 'var(--orange)' }}>{formatRupiah(auction.current_highest_bid)}</div>
-                </>
-              )}
-            </div>
-
-            {/* Status + Timer */}
-            {auction && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: st?.color, animation: auction.status === 'active' ? 'pulse 1.5s infinite' : 'none' }} />
-                  <span style={{ fontWeight: 700, color: st?.color }}>{st?.label}</span>
+          <aside className="auction-panel" aria-label="Panel lelang">
+            {auction ? (
+              <>
+                <div className="auction-status-line" data-status={auction.status}>
+                  <span className="auction-status-dot" />
+                  <span>{auctionStatus}</span>
                 </div>
+
                 {auction.status === 'active' && (
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>⏱ Sisa Waktu Lelang</div>
+                  <div className="auction-timer-block">
+                    <span>Lelang selesai dalam</span>
                     <BidTimer endTime={auction.end_time} />
                   </div>
                 )}
+
                 {auction.status === 'upcoming' && (
-                  <div style={{ fontSize: 13, color: 'var(--text3)' }}>Mulai: {new Date(auction.start_time).toLocaleString('id-ID')}</div>
-                )}
-              </div>
-            )}
-
-            {/* CTA */}
-            {auction?.status === 'active' ? (
-              currentUser?.is_verified ? (
-                <button className="btn btn-primary btn-lg" style={{ width: '100%', fontSize: 16 }} onClick={() => navigate(`/auctions/${auction.id}`)}>
-                  <Gavel size={20} /> Ikut Lelang Sekarang
-                </button>
-              ) : !currentUser ? (
-                <div>
-                  <div className="alert alert-error" style={{ marginBottom: 12 }}>
-                    <AlertCircle size={14} /> Login untuk mengikuti lelang
+                  <div className="auction-meta-card">
+                    <span>Jadwal Mulai</span>
+                    <strong>{new Date(auction.start_time).toLocaleString('id-ID')}</strong>
                   </div>
-                  <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => navigate('/login')}>Masuk</button>
+                )}
+
+                <div className="auction-bid-summary">
+                  <span>{auction.status === 'ended' ? 'Harga akhir' : 'Bid paling besar'}</span>
+                  <strong>{formatRupiah(auction.current_highest_bid)}</strong>
                 </div>
-              ) : (
-                <div className="alert alert-error"><AlertCircle size={14} /> Akun belum diverifikasi admin</div>
-              )
-            ) : auction?.status === 'ended' ? (
-              <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
-                <div style={{ fontWeight: 700 }}>Lelang Telah Berakhir</div>
-              </div>
-            ) : !auction ? (
-              <div style={{ textAlign: 'center', padding: '8px 0', color: 'var(--text3)', fontSize: 13 }}>Belum ada jadwal lelang</div>
-            ) : null}
-          </div>
+
+                {auction.status === 'active' && (
+                  <form className="detail-bid-form" onSubmit={handleBidSubmit}>
+                    <label htmlFor="detailBidAmount">Tambah Bid</label>
+                    <input
+                      id="detailBidAmount"
+                      value={bidAmount ? Number(bidAmount).toLocaleString('id-ID') : ''}
+                      onChange={handleBidChange}
+                      placeholder={`Min. ${minBid.toLocaleString('id-ID')}`}
+                      inputMode="numeric"
+                    />
+                    {bidError && (
+                      <div className="alert alert-error detail-bid-alert">
+                        <AlertCircle size={14} /> {bidError}
+                      </div>
+                    )}
+                    {bidSuccess && <div className="alert alert-success detail-bid-alert">{bidSuccess}</div>}
+                    <button className="btn btn-primary btn-lg detail-bid-button" type="submit">
+                      <Gavel size={18} /> {currentUser ? 'Masukkan' : 'Masuk untuk Menawar'}
+                    </button>
+                  </form>
+                )}
+
+                {auction.status === 'ended' && (
+                  <div className="auction-ended-note">Lelang kendaraan ini telah selesai.</div>
+                )}
+              </>
+            ) : (
+              <div className="auction-empty-note">Belum ada jadwal lelang untuk kendaraan ini.</div>
+            )}
+          </aside>
         </div>
-      </div>
+      </section>
 
-      {/* ── Body: Specs + Sticky panel placeholder ── */}
-      <div className="detail-body">
-        <div>
-          {/* Description */}
-          <div className="spec-section">
-            <div className="spec-section-title"><Info size={16} /> Deskripsi Kendaraan</div>
-            <p style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.75 }}>{car.description}</p>
-          </div>
-
-          {/* General specs */}
-          <div className="spec-section">
-            <div className="spec-section-title"><Info size={16} /> Informasi Umum</div>
-            <div className="spec-grid">
-              {[
-                ['Nama Kendaraan', car.name],
-                ['Kategori', categoryLabel[car.category]],
-                ['Harga Awal', formatRupiah(car.initial_price)],
-                ['Status Verifikasi', car.is_verified ? '✓ Terverifikasi' : 'Belum Verifikasi'],
-              ].map(([k, v]) => (
-                <div className="spec-row" key={k} style={{ paddingRight: 20 }}>
-                  <div className="spec-key">{k}</div>
-                  <div className="spec-val" style={{ color: k === 'Harga Awal' ? 'var(--orange)' : k === 'Status Verifikasi' && car.is_verified ? 'var(--success)' : undefined }}>{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Technical / Verification */}
-          <div className="spec-section" style={{ background: 'rgba(34,197,94,.03)', borderColor: 'rgba(34,197,94,.2)' }}>
-            <div className="spec-section-title" style={{ color: 'var(--success)' }}>
-              <ShieldCheck size={16} /> Data Verifikasi Kendaraan
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              {[
-                ['No. Rangka (Chassis)', car.chassis_number],
-                ['No. Mesin', car.engine_number],
-              ].map(([k, v]) => (
-                <div key={k} style={{ background: 'rgba(34,197,94,.06)', border: '1px solid rgba(34,197,94,.15)', borderRadius: 10, padding: 14 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, fontWeight: 600 }}>{k}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, letterSpacing: .5, wordBreak: 'break-all' }}>{v}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(34,197,94,.08)', borderRadius: 10 }}>
-              <ShieldCheck size={16} style={{ color: 'var(--success)' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>Dokumen dan nomor kendaraan telah diverifikasi oleh Tim CarVentory</span>
-            </div>
-          </div>
-
-          {/* Auction history if ended */}
-          {auction?.status === 'ended' && (
+      <section className="detail-body">
+        <div className="detail-info-grid">
+          <div className="detail-info-stack">
             <div className="spec-section">
-              <div className="spec-section-title"><TrendingUp size={16} /> Hasil Lelang</div>
+              <div className="spec-section-title">
+                <Info size={16} /> Deskripsi Kendaraan
+              </div>
+              <p className="spec-description">{car.description}</p>
+            </div>
+
+            <div className="spec-section spec-section-verification">
+              <div className="spec-section-title">
+                <ShieldCheck size={16} /> Data Verifikasi Kendaraan
+              </div>
+              <div className="verification-grid">
+                {[
+                  ['No. Rangka (Chassis)', car.chassis_number],
+                  ['No. Mesin', car.engine_number],
+                ].map(([key, value]) => (
+                  <div className="verification-card" key={key}>
+                    <div>{key}</div>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="verification-note">
+                <ShieldCheck size={16} />
+                <span>Dokumen dan nomor kendaraan telah diverifikasi oleh Tim CarVentory.</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="detail-info-stack">
+            <div className="spec-section">
+              <div className="spec-section-title">
+                <Info size={16} /> Informasi Umum
+              </div>
               <div className="spec-grid">
                 {[
+                  ['Nama Kendaraan', car.name],
+                  ['Kategori', categoryLabel[car.category]],
+                  ['Lokasi', car.location],
                   ['Harga Awal', formatRupiah(car.initial_price)],
-                  ['Harga Akhir', formatRupiah(auction.current_highest_bid)],
-                  ['Tanggal Selesai', new Date(auction.end_time).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })],
-                  ['Status', 'Terjual'],
-                ].map(([k, v]) => (
-                  <div className="spec-row" key={k} style={{ paddingRight: 20 }}>
-                    <div className="spec-key">{k}</div>
-                    <div className="spec-val" style={{ color: k === 'Harga Akhir' ? 'var(--orange)' : k === 'Status' ? 'var(--success)' : undefined }}>{v}</div>
+                  ['Status Verifikasi', car.is_verified ? 'Terverifikasi' : 'Belum Verifikasi'],
+                ].map(([key, value]) => (
+                  <div className="spec-row" key={key}>
+                    <div className="spec-key">{key}</div>
+                    <div
+                      className="spec-val"
+                      data-tone={
+                        key === 'Harga Awal' ? 'accent' : key === 'Status Verifikasi' && car.is_verified ? 'success' : undefined
+                      }
+                    >
+                      {value}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+
+            {auction?.status === 'ended' && (
+              <div className="spec-section">
+                <div className="spec-section-title">
+                  <TrendingUp size={16} /> Hasil Lelang
+                </div>
+                <div className="spec-grid">
+                  {[
+                    ['Harga Awal', formatRupiah(car.initial_price)],
+                    ['Harga Akhir', formatRupiah(auction.current_highest_bid)],
+                    [
+                      'Tanggal Selesai',
+                      new Date(auction.end_time).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      }),
+                    ],
+                    ['Status', 'Terjual'],
+                  ].map(([key, value]) => (
+                    <div className="spec-row" key={key}>
+                      <div className="spec-key">{key}</div>
+                      <div className="spec-val" data-tone={key === 'Harga Akhir' ? 'accent' : key === 'Status' ? 'success' : undefined}>
+                        {value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right: repeat auction panel for scroll context (desktop) */}
-        <div>
-          {auction?.status === 'active' && (
-            <div className="auction-panel">
-              <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 16 }}>Lelang ini sedang berlangsung</div>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>Penawaran Tertinggi</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--orange)' }}>{formatRupiah(auction.current_highest_bid)}</div>
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>⏱ Sisa Waktu</div>
-                <BidTimer endTime={auction.end_time} />
-              </div>
-              {currentUser?.is_verified ? (
-                <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => navigate(`/auctions/${auction.id}`)}>
-                  <Gavel size={18} /> Tawar Sekarang
-                </button>
-              ) : (
-                <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => navigate('/login')}>
-                  Masuk untuk Menawar
-                </button>
-              )}
+        <div className="activity-section">
+          <div className="activity-section-title">Aktivitas Terkini</div>
+          {bids.length > 0 ? (
+            <div className="activity-list">
+              {bids.slice(0, 4).map((bid, index) => (
+                <div className="activity-item" key={bid.id}>
+                  <div>
+                    <strong>{index === 0 ? 'Penawaran tertinggi' : 'Penawaran masuk'}</strong>
+                    <span>{new Date(bid.timestamp).toLocaleTimeString('id-ID')}</span>
+                  </div>
+                  <b>{formatRupiah(bid.bid_amount)}</b>
+                </div>
+              ))}
             </div>
+          ) : (
+            <p className="activity-empty">Belum ada aktivitas penawaran.</p>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Zap, TrendingUp, ArrowRight, Star } from 'lucide-react';
 import { mockCars, mockAuctions } from '../lib/mockData';
 import CarCard from '../components/CarCard';
+import { useAuth } from '../context/AuthContext';
 import './LandingPage.css';
 
 const FEATURES_DATA = [
@@ -29,8 +30,12 @@ const mapToCardData = (car, auction) => {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const active = mockAuctions.filter(a => a.status === 'active');
   const trending = active.slice(0, 3);
+  const heroCta = currentUser
+    ? { label: 'Jelajahi Mobil', path: '/catalog' }
+    : { label: 'Daftar Sekarang', path: '/register' };
 
   return (
     <div className="landing-container">
@@ -49,8 +54,8 @@ export default function LandingPage() {
             </p>
 
             <div className="hero-actions">
-              <button className="btn-custom-primary" onClick={() => navigate('/register')}>
-                Daftar Sekarang <ArrowRight size={16} />
+              <button className="btn-custom-primary" onClick={() => navigate(heroCta.path)}>
+                {heroCta.label} <ArrowRight size={16} />
               </button>
             </div>
           </div>
@@ -60,18 +65,18 @@ export default function LandingPage() {
       {/* Features Section */}
       <section className="features-custom-section">
         <div className="features-custom-grid">
-          {FEATURES_DATA.map(({ icon: Icon, title, desc, color }) => (
-            <div key={title} className="feature-custom-card">
+          {FEATURES_DATA.map((feature) => (
+            <div key={feature.title} className="feature-custom-card">
               <div
                 className="feature-custom-icon"
-                style={{ backgroundColor: `${color}22`, color }}
+                style={{ backgroundColor: `${feature.color}22`, color: feature.color }}
               >
-                <Icon size={22} />
+                {React.createElement(feature.icon, { size: 22 })}
               </div>
 
               <div className="feature-custom-text">
-                <h3 className="feature-custom-title">{title}</h3>
-                <p className="feature-custom-desc">{desc}</p>
+                <h3 className="feature-custom-title">{feature.title}</h3>
+                <p className="feature-custom-desc">{feature.desc}</p>
               </div>
             </div>
           ))}

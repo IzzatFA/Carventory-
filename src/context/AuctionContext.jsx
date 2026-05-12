@@ -9,11 +9,12 @@ export const AuctionProvider = ({ children }) => {
   const [notifications, setNotifications] = useState(mockNotifications);
 
   // Simulate real-time: place a bid
-  const placeBid = useCallback((auctionId, userId, carId, bidAmount) => {
+  const placeBid = useCallback((auctionId, userId, carId, bidAmount, availableBalance = Infinity) => {
     const auction = auctions.find((a) => a.id === auctionId);
     if (!auction) return { success: false, error: 'Lelang tidak ditemukan.' };
     if (auction.status !== 'active') return { success: false, error: 'Lelang sudah berakhir atau belum dimulai.' };
     if (new Date() >= new Date(auction.end_time)) return { success: false, error: 'Waktu lelang telah habis.' };
+    if (bidAmount > availableBalance) return { success: false, error: 'Maaf tapi saldo anda tidak cukup' };
     if (bidAmount <= (auction.current_highest_bid || auction.initial_price)) {
       return { success: false, error: `Penawaran harus lebih tinggi dari ${auction.current_highest_bid?.toLocaleString('id-ID')}.` };
     }
