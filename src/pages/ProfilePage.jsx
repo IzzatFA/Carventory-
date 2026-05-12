@@ -1,106 +1,180 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, ShieldCheck, ShieldOff, CreditCard, LogOut } from 'lucide-react';
+import {
+  CheckCircle,
+  ClipboardList,
+  Clock3,
+  CreditCard,
+  LogOut,
+  Trophy,
+  UserRound,
+  XCircle,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
-import { formatRupiah } from '../lib/mockData';
+import { formatRupiah, mockTransactions } from '../lib/mockData';
+import './ProfilePage.css';
 
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
   const { getUserBids, auctions } = useAuction();
   const navigate = useNavigate();
 
-  if (!currentUser) return (
-    <div className="page"><div className="empty-state"><div className="empty-state-icon">🔒</div><h3>Login Diperlukan</h3><button className="btn btn-primary" onClick={() => navigate('/login')}>Masuk</button></div></div>
-  );
+  if (!currentUser) {
+    return (
+      <div className="profile-page">
+        <div className="profile-login-required">
+          <div className="empty-state">
+            <div className="empty-state-icon">🔒</div>
+            <h3>Login Diperlukan</h3>
+            <button className="btn btn-primary" onClick={() => navigate('/login')}>
+              Masuk
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const myBids = getUserBids(currentUser.id);
-  const won = myBids.filter(b => { const a = auctions.find(x=>x.id===b.auction_id); return a?.status==='ended' && a?.winner_id===currentUser.id; }).length;
+  const recentTransactions = mockTransactions
+    .filter((transaction) => transaction.user_id === currentUser.id)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const won = myBids.filter((bid) => {
+    const auction = auctions.find((item) => item.id === bid.auction_id);
+    return auction?.status === 'ended' && auction?.winner_id === currentUser.id;
+  }).length;
+
+  const displayName = currentUser.name || 'User';
+  const roleLabel = currentUser.role === 'admin' ? 'Admin' : 'Pengguna';
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Profil Saya</h1>
-        <p className="page-sub">Kelola informasi akun Anda</p>
-      </div>
+    <main className="profile-page">
+      <div className="profile-content">
+        <h1 className="profile-heading">Profil</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Profile card */}
-        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg,var(--orange),#ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800 }}>
-              {currentUser.name[0]}
-            </div>
-            <div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{currentUser.name}</h2>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {currentUser.is_verified
-                  ? <span className="badge badge-success"><ShieldCheck size={10} /> Terverifikasi</span>
-                  : <span className="badge badge-warning"><ShieldOff size={10} /> Belum Verifikasi</span>}
-                <span className="badge badge-orange">{currentUser.role === 'admin' ? '👑 Admin' : '👤 User'}</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {[
-              { icon: Mail, label: 'Email', value: currentUser.email },
-              { icon: Phone, label: 'Nomor HP', value: currentUser.phone || '-' },
-              { icon: User, label: 'Role', value: currentUser.role === 'admin' ? 'Administrator' : 'Pengguna' },
-            ].map(({ icon: Icon, label, value }) => (
-              <div key={label} className="spec-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text3)' }}>
-                  <Icon size={14} />{label}
+        <div className="profile-dashboard">
+          <section className="profile-left-column">
+            <div className="profile-identity-card">
+              <div className="profile-identity-top">
+                <div className="profile-avatar-large">
+                  <UserRound size={58} />
                 </div>
-                <span style={{ fontWeight: 600 }}>{value}</span>
+
+                <div className="profile-identity-body">
+                  <h2>{displayName}</h2>
+                  <a href={`mailto:${currentUser.email}`}>{currentUser.email}</a>
+                  <p>{currentUser.phone || '+62 1236767'}</p>
+                </div>
               </div>
-            ))}
-            <div className="spec-row" style={{ borderBottom: 'none' }}>
-              <span style={{ color: 'var(--text3)' }}>Bergabung Sejak</span>
-              <span style={{ fontWeight: 600 }}>{new Date(currentUser.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })}</span>
+
+              <div className="profile-status-row">
+                <span className={`profile-pill ${currentUser.is_verified ? 'verified' : 'warning'}`}>
+                  {currentUser.is_verified ? 'Terverifikasi' : 'Belum Verifikasi'}
+                </span>
+
+                <span className="profile-pill role">
+                  {roleLabel}
+                </span>
+              </div>
+
+              <button className="profile-edit-btn" type="button">
+                Edit Profil
+              </button>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => navigate('/topup')}>
-              <CreditCard size={16} /> Top Up
-            </button>
-            <button className="btn btn-danger btn-sm" onClick={() => { logout(); navigate('/'); }}>
-              <LogOut size={16} /> Keluar
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ background: 'linear-gradient(135deg,rgba(249,115,22,0.15),rgba(249,115,22,0.05))', border: '1px solid rgba(249,115,22,0.3)', borderRadius: 'var(--radius-lg)', padding: 24 }}>
-            <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 6 }}>💰 Saldo Deposit</div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--orange)' }}>{formatRupiah(currentUser.deposit_balance)}</div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {[
-              { label: 'Total Penawaran', value: myBids.length, color: 'var(--orange)', emoji: '📋' },
-              { label: 'Lelang Dimenangkan', value: won, color: 'var(--success)', emoji: '🏆' },
-            ].map(({ label, value, color, emoji }) => (
-              <div key={label} className="stat-card">
-                <div style={{ fontSize: 28 }}>{emoji}</div>
-                <div className="stat-value" style={{ color }}>{value}</div>
-                <div className="stat-label">{label}</div>
+            <div className="profile-summary-grid">
+              <div className="profile-summary-card">
+                <ClipboardList className="profile-summary-icon" size={32} />
+                <strong>{myBids.length}</strong>
+                <span>Total Penawaran</span>
               </div>
-            ))}
-          </div>
 
-          {!currentUser.is_verified && (
-            <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--warning)' }}>⚠️ Akun Belum Diverifikasi</div>
-              <div style={{ fontSize: 13, color: 'var(--text3)', lineHeight: 1.5 }}>
-                Akun Anda perlu diverifikasi oleh admin sebelum dapat mengikuti lelang. Hubungi admin CarVentory.
+              <div className="profile-summary-card">
+                <Trophy className="profile-summary-icon trophy" size={34} />
+                <strong className="success">{won}</strong>
+                <span>Lelang Dimenangkan</span>
               </div>
             </div>
-          )}
+
+            <button className="profile-logout-btn" type="button" onClick={handleLogout}>
+              <LogOut size={24} />
+              Keluar
+            </button>
+          </section>
+
+          <section className="profile-right-column">
+            <div className="profile-balance-card">
+              <span>Saldo Anda</span>
+              <strong>{formatRupiah(currentUser.deposit_balance)}</strong>
+
+              <button type="button" onClick={() => navigate('/topup')}>
+                <CreditCard size={20} />
+                Top Up
+              </button>
+            </div>
+
+            <div className="profile-activity-card">
+              <h2>Aktivitas Terkini</h2>
+
+              {recentTransactions.length === 0 ? (
+                <div className="profile-empty-activity">
+                  <Clock3 size={72} strokeWidth={1.6} />
+                  <p>
+                    Belum ada
+                    <br />
+                    Aktivitas
+                  </p>
+                </div>
+              ) : (
+                <div className="profile-activity-list">
+                  {recentTransactions.map((transaction) => {
+                    const status = transaction.status === 'paid'
+                      ? { label: 'Berhasil', className: 'success', icon: CheckCircle }
+                      : transaction.status === 'failed'
+                        ? { label: 'Gagal', className: 'danger', icon: XCircle }
+                        : { label: 'Proses', className: 'warning', icon: Clock3 };
+                    const StatusIcon = status.icon;
+
+                    return (
+                      <article className="profile-activity-item" key={transaction.id}>
+                        <div className="profile-activity-icon">
+                          <CreditCard size={20} />
+                        </div>
+
+                        <div className="profile-activity-body">
+                          <div className="profile-activity-top">
+                            <strong>Top Up Saldo</strong>
+                            <span className={`profile-activity-status ${status.className}`}>
+                              <StatusIcon size={12} />
+                              {status.label}
+                            </span>
+                          </div>
+
+                          <span className="profile-activity-amount">+{formatRupiah(transaction.amount)}</span>
+                          <time dateTime={transaction.created_at}>
+                            {new Date(transaction.created_at).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </time>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

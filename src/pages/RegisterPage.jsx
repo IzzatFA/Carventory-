@@ -1,102 +1,162 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, Phone, Eye, EyeOff } from 'lucide-react';
+import { UserRound, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import './RegisterPage.css';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (key) => (e) => {
+    setForm((current) => ({ ...current, [key]: e.target.value }));
+  };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (role) => (e) => {
     e.preventDefault();
     setError('');
-    if (form.password.length < 6) return setError('Password minimal 6 karakter.');
-    setLoading(true);
+
+    if (form.password.length < 6) {
+      setError('Password minimal 6 karakter.');
+      return;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      setError('Konfirmasi password tidak sama.');
+      return;
+    }
+
+    setLoadingRole(role);
+
     setTimeout(() => {
-      const res = register(form.name, form.email, form.password, form.phone);
-      setLoading(false);
-      if (res.success) navigate('/');
-      else setError(res.error);
+      const res = register(form.name, form.email, form.password, '');
+      setLoadingRole('');
+      if (res.success) {
+        navigate('/');
+      } else {
+        setError(res.error);
+      }
     }, 800);
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-left">
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 72, marginBottom: 16 }}>🚗</div>
-          <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--orange)', marginBottom: 8 }}>CarVentory</div>
-          <div style={{ fontSize: 16, color: 'var(--text2)', lineHeight: 1.6, maxWidth: 280 }}>
-            Daftar sekarang dan mulai pengalaman lelang mobil digital terbaik!
-          </div>
-          <div style={{ marginTop: 32, padding: 20, background: 'rgba(249,115,22,0.1)', borderRadius: 12, border: '1px solid rgba(249,115,22,0.2)' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)', marginBottom: 8 }}>Keuntungan Mendaftar</div>
-            {['✓ Akses ke semua lelang aktif', '✓ Notifikasi real-time', '✓ Riwayat penawaran tersimpan', '✓ Sistem deposit aman'].map(t => (
-              <div key={t} style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>{t}</div>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div className="register-page">
+      <div className="register-shell">
+        <section className="register-brand-panel" aria-label="Carventory">
+          <div className="register-logo-mark" aria-hidden="true" />
+          <div className="register-brand-name">CARVENTORY</div>
+        </section>
 
-      <div className="auth-right">
-        <div className="auth-card">
-          <h1 className="auth-title">Buat Akun Baru</h1>
-          <p className="auth-sub">Isi data diri Anda untuk mulai</p>
+        <section className="register-form-panel">
+          <div className="register-card">
+            <h1 className="register-title">Daftar</h1>
 
-          {error && <div className="alert alert-error">{error}</div>}
+            {error && <div className="alert alert-error register-alert">{error}</div>}
 
-          <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label className="input-label">Nama Lengkap</label>
-              <div className="input-icon-wrap">
-                <User size={16} className="input-icon" />
-                <input className="input" placeholder="Nama Lengkap" value={form.name} onChange={set('name')} required />
+            <form className="register-form">
+              <div className="register-input-group">
+                <UserRound size={15} className="register-input-icon" />
+                <input
+                  className="register-input"
+                  placeholder="Username"
+                  value={form.name}
+                  onChange={set('name')}
+                  aria-label="Username"
+                  required
+                />
               </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Email</label>
-              <div className="input-icon-wrap">
-                <Mail size={16} className="input-icon" />
-                <input className="input" type="email" placeholder="email@example.com" value={form.email} onChange={set('email')} required />
+
+              <div className="register-input-group">
+                <Mail size={15} className="register-input-icon" />
+                <input
+                  className="register-input"
+                  type="email"
+                  placeholder="Email"
+                  value={form.email}
+                  onChange={set('email')}
+                  aria-label="Email"
+                  required
+                />
               </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Nomor HP</label>
-              <div className="input-icon-wrap">
-                <Phone size={16} className="input-icon" />
-                <input className="input" type="tel" placeholder="08xxxxxxxxxx" value={form.phone} onChange={set('phone')} required />
-              </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Password</label>
-              <div className="input-icon-wrap" style={{ position: 'relative' }}>
-                <Lock size={16} className="input-icon" />
-                <input className="input" type={show ? 'text' : 'password'} placeholder="Minimal 6 karakter" value={form.password} onChange={set('password')} required style={{ paddingRight: 40 }} />
-                <button type="button" onClick={() => setShow(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer' }}>
-                  {show ? <EyeOff size={16} /> : <Eye size={16} />}
+
+              <div className="register-input-group">
+                <Lock size={15} className="register-input-icon" />
+                <input
+                  className="register-input register-password-input"
+                  type={show ? 'text' : 'password'}
+                  placeholder="Password"
+                  value={form.password}
+                  onChange={set('password')}
+                  aria-label="Password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="register-password-toggle"
+                  onClick={() => setShow((value) => !value)}
+                  aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}
+                >
+                  {show ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 16, lineHeight: 1.5 }}>
-              Dengan mendaftar, Anda menyetujui <span style={{ color: 'var(--orange)' }}>Syarat & Ketentuan</span> dan <span style={{ color: 'var(--orange)' }}>Kebijakan Privasi</span> CarVentory.
-            </div>
-            <button className="btn btn-primary" style={{ width: '100%' }} type="submit" disabled={loading}>
-              {loading ? '⏳ Memproses...' : 'Daftar Sekarang'}
-            </button>
-          </form>
 
-          <div className="auth-divider">atau</div>
-          <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--text3)' }}>
-            Sudah punya akun?{' '}
-            <span className="auth-link" onClick={() => navigate('/login')}>Masuk</span>
-          </p>
-        </div>
+              <div className="register-input-group">
+                <Lock size={15} className="register-input-icon" />
+                <input
+                  className="register-input register-password-input"
+                  type={show ? 'text' : 'password'}
+                  placeholder="Konfirmasi Password"
+                  value={form.confirmPassword}
+                  onChange={set('confirmPassword')}
+                  aria-label="Konfirmasi Password"
+                  required
+                />
+              </div>
+
+              <button
+                className="register-submit"
+                type="submit"
+                disabled={Boolean(loadingRole)}
+                onClick={handleSubmit('buyer')}
+              >
+                {loadingRole === 'buyer' ? 'Memproses...' : 'Daftar sebagai Pembeli'}
+              </button>
+
+              <div className="register-divider">
+                <span>ATAU</span>
+              </div>
+
+              <button
+                className="register-submit"
+                type="submit"
+                disabled={Boolean(loadingRole)}
+                onClick={handleSubmit('seller')}
+              >
+                {loadingRole === 'seller' ? 'Memproses...' : 'Daftar sebagai Penjual'}
+              </button>
+            </form>
+
+            <p className="register-login-text">
+              Sudah punya akun?{' '}
+              <button
+                type="button"
+                className="register-login-link"
+                onClick={() => navigate('/login')}
+              >
+                Masuk sekarang
+              </button>
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );

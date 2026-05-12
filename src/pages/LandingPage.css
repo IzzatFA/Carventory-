@@ -1,0 +1,290 @@
+/* Page wrapper yang sadar ada sidebar */
+.landing-container {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg, #0f172a);
+
+  /*
+    Sidebar desktop lu 128px.
+    Karena sidebar position: fixed, konten harus digeser manual.
+  */
+  padding-left: 128px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Utility Classes */
+.section-no-pt {
+  padding-top: 0;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+/* Custom Hero Section */
+.hero-custom {
+  background-color: #222224;
+  padding: 80px 40px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.hero-custom-inner {
+  max-width: var(--max-w);
+  width: 100%;
+  margin: 0 auto;
+}
+
+.hero-custom-content {
+  max-width: 700px;
+}
+
+.hero-custom-title {
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #f8fafc;
+  margin: 0 0 24px;
+  letter-spacing: 0.5px;
+}
+
+.hero-custom-title span {
+  color: #e87b28;
+}
+
+.hero-custom-desc {
+  font-size: 16px;
+  color: #f8fafc;
+  line-height: 1.6;
+  margin: 0 0 32px;
+  font-weight: 600;
+}
+
+.btn-custom-primary {
+  background-color: #e87b28;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  padding: 14px 28px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-custom-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Custom Features Section */
+.features-custom-section {
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.features-custom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  max-width: 1000px;
+  width: 100%;
+}
+
+.feature-custom-card {
+  background-color: rgba(215, 244, 255, 0.15);
+  border: 1px solid #455a88;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-custom-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.feature-custom-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feature-custom-title {
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+
+.feature-custom-desc {
+  color: #a0aec0;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Trending Section */
+.landing-trending-section {
+  margin-top: 40px;
+  padding-left: 40px;
+  padding-right: 40px;
+  padding-bottom: 48px;
+  box-sizing: border-box;
+}
+
+/*
+  Kalau class .section dari global CSS punya max-width/margin aneh,
+  ini bantu landing tetap rapi setelah sidebar.
+*/
+.landing-trending-section.section {
+  width: 100%;
+}
+
+/* Header trending biar nggak mepet */
+.landing-trending-section .section-header {
+  max-width: var(--max-w);
+  margin: 0 auto 20px;
+}
+
+/* Trending Carousel Fix */
+.trending-carousel {
+  max-width: var(--max-w);
+  margin: 0 auto;
+
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 24px;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+}
+
+.trending-carousel::-webkit-scrollbar {
+  height: 8px;
+}
+
+.trending-carousel::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.trending-carousel>div {
+  flex: 0 0 500px;
+  scroll-snap-align: start;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .hero-custom {
+    padding: 64px 28px;
+  }
+
+  .features-custom-section {
+    padding: 32px 28px;
+  }
+
+  .landing-trending-section {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .hero-custom-title {
+    font-size: 36px;
+  }
+}
+
+/* Mobile sidebar lu 104px */
+@media (max-width: 768px) {
+  .landing-container {
+    padding-left: 104px;
+  }
+
+  .features-custom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-custom {
+    padding: 48px 18px;
+  }
+
+  .hero-custom-title {
+    font-size: 30px;
+    line-height: 1.3;
+  }
+
+  .hero-custom-desc {
+    font-size: 14px;
+  }
+
+  .features-custom-section {
+    padding: 24px 18px;
+  }
+
+  .feature-custom-card {
+    padding: 18px;
+  }
+
+  .landing-trending-section {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .landing-trending-section .section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .trending-carousel>div {
+    /*
+      100vw dikurangi sidebar 104px dan padding kanan kiri section 36px.
+      Jadi card nggak ketiban / kepotong.
+    */
+    flex: 0 0 calc(100vw - 104px - 36px);
+  }
+}
+
+/* Extra small */
+@media (max-width: 480px) {
+  .landing-container {
+    padding-left: 96px;
+  }
+
+  .hero-custom {
+    padding: 40px 14px;
+  }
+
+  .hero-custom-title {
+    font-size: 26px;
+  }
+
+  .features-custom-section {
+    padding: 20px 14px;
+  }
+
+  .landing-trending-section {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .trending-carousel>div {
+    flex: 0 0 calc(100vw - 96px - 28px);
+  }
+}

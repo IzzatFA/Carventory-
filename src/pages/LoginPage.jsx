@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Gavel } from 'lucide-react';
+import { UserRound, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import './LoginPage.css';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,85 +17,103 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     setTimeout(() => {
       const res = login(email, password);
       setLoading(false);
-      if (res.success) navigate('/');
-      else setError(res.error);
+      if (res.success) {
+        navigate('/');
+      } else {
+        setError(res.error);
+      }
     }, 800);
   };
 
   const demoLogin = (type) => {
-    if (type === 'user') { setEmail('budi@example.com'); setPassword('password123'); }
-    else { setEmail('admin@carventory.id'); setPassword('adminpass'); }
+    if (type === 'user') {
+      setEmail('budi@example.com');
+      setPassword('password123');
+    } else {
+      setEmail('admin@carventory.id');
+      setPassword('adminpass');
+    }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-left">
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 72, marginBottom: 16 }}>🚗</div>
-          <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--orange)', marginBottom: 8 }}>CarVentory</div>
-          <div style={{ fontSize: 16, color: 'var(--text2)', lineHeight: 1.6, maxWidth: 280 }}>
-            Platform Lelang Mobil Digital Terpercaya #1 di Indonesia
-          </div>
-          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginTop: 40 }}>
-            {[['500+','Mobil'],['12K+','Pengguna'],['98%','Kepuasan']].map(([n,l]) => (
-              <div key={l} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--orange)' }}>{n}</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>{l}</div>
+    <div className="login-page">
+      <div className="login-shell">
+        <section className="login-brand-panel" aria-label="Carventory">
+          <div className="login-logo-mark" aria-hidden="true" />
+          <div className="login-brand-name">CARVENTORY</div>
+        </section>
+
+        <section className="login-form-panel">
+          <div className="login-card">
+            <h1 className="login-title">Login</h1>
+
+            {error && <div className="alert alert-error login-alert">{error}</div>}
+
+            <form onSubmit={handleSubmit} className="login-form">
+              <div className="login-input-group">
+                <UserRound size={15} className="login-input-icon" />
+                <input
+                  className="login-input"
+                  type="email"
+                  placeholder="Username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-label="Email"
+                  required
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      <div className="auth-right">
-        <div className="auth-card">
-          <h1 className="auth-title">Selamat Datang 👋</h1>
-          <p className="auth-sub">Masuk ke akun CarVentory Anda</p>
-
-          {error && <div className="alert alert-error">{error}</div>}
-
-          {/* Demo shortcuts */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-            <button className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: 11 }} onClick={() => demoLogin('user')}>
-              Demo User
-            </button>
-            <button className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: 11 }} onClick={() => demoLogin('admin')}>
-              Demo Admin
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label className="input-label">Email</label>
-              <div className="input-icon-wrap">
-                <Mail size={16} className="input-icon" />
-                <input className="input" type="email" placeholder="email@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
-              </div>
-            </div>
-            <div className="input-group">
-              <label className="input-label">Password</label>
-              <div className="input-icon-wrap" style={{ position: 'relative' }}>
-                <Lock size={16} className="input-icon" />
-                <input className="input" type={show ? 'text' : 'password'} placeholder="Password Anda" value={password} onChange={e => setPassword(e.target.value)} required style={{ paddingRight: 40 }} />
-                <button type="button" onClick={() => setShow(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer' }}>
-                  {show ? <EyeOff size={16} /> : <Eye size={16} />}
+              <div className="login-input-group">
+                <Lock size={15} className="login-input-icon" />
+                <input
+                  className="login-input login-password-input"
+                  type={show ? 'text' : 'password'}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  aria-label="Password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShow((value) => !value)}
+                  aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}
+                >
+                  {show ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
-            </div>
-            <button className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} type="submit" disabled={loading}>
-              {loading ? '⏳ Memproses...' : 'Masuk'}
-            </button>
-          </form>
 
-          <div className="auth-divider">atau</div>
-          <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--text3)' }}>
-            Belum punya akun?{' '}
-            <span className="auth-link" onClick={() => navigate('/register')}>Daftar Sekarang</span>
-          </p>
-        </div>
+              <button className="login-submit" type="submit" disabled={loading}>
+                {loading ? 'Memproses...' : 'Login'}
+              </button>
+            </form>
+
+            <div className="demo-shortcuts" aria-label="Demo login shortcuts">
+              <button className="demo-btn" type="button" onClick={() => demoLogin('user')}>
+                Demo User
+              </button>
+              <button className="demo-btn" type="button" onClick={() => demoLogin('admin')}>
+                Demo Admin
+              </button>
+            </div>
+
+            <p className="login-register-text">
+              Tidak punya akun?{' '}
+              <button
+                type="button"
+                className="login-register-link"
+                onClick={() => navigate('/register')}
+              >
+                Daftar sekarang
+              </button>
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );

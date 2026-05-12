@@ -1,63 +1,76 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatRupiah, getAuctionByCar, categoryColors } from '../lib/mockData';
-import BidTimer from './BidTimer';
-import { Gavel, Eye, Clock } from 'lucide-react';
+import { formatRupiah } from '../lib/mockData';
+import CountdownTimer from './CountdownTimer';
+import './CarCard.css';
 
-export default function CarCard({ car, auction }) {
+export default function CarCard({ data }) {
   const navigate = useNavigate();
-  const auc = auction || getAuctionByCar(car.id);
+  const [imgError, setImgError] = useState(false);
 
-  const statusBadge = () => {
-    if (!auc) return <span className="badge badge-gray">Tidak Dilelang</span>;
-    if (auc.status === 'active') return <span className="badge badge-success" style={{ gap: 6 }}><span className="live-dot" />Live</span>;
-    if (auc.status === 'upcoming') return <span className="badge badge-info">Segera</span>;
-    return <span className="badge badge-gray">Selesai</span>;
+  if (!data) return null;
+
+  const {
+    id,
+    namaMobil,
+    hargaAwal,
+    hargaTertinggi,
+    waktuLelangSelesai,
+    gambarMobil,
+    lokasi,
+    statusLelang
+  } = data;
+
+  const handleCardClick = () => {
+    navigate(`/cars/${id}`);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleCardClick();
+    }
   };
 
   return (
-    <div className="card animate-fade" style={{ cursor: 'pointer' }} onClick={() => navigate(`/cars/${car.id}`)}>
-      <div style={{ position: 'relative' }}>
+    <div
+      className="card-horizontal clickable-card"
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      aria-label={`Lihat detail mobil ${namaMobil}`}
+    >
+      <div className="card-image-section">
         <img
-          src={car.image_url}
-          alt={car.name}
-          className="card-img"
-          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=600'; }}
+          src={imgError ? 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=600' : gambarMobil}
+          alt={namaMobil}
+          className="card-img-horizontal"
+          onError={() => setImgError(true)}
         />
-        <div style={{ position: 'absolute', top: 12, left: 12 }}>{statusBadge()}</div>
-        {car.is_verified && (
-          <div style={{ position: 'absolute', top: 12, right: 12 }}>
-            <span className="badge badge-success">✓ Terverifikasi</span>
-          </div>
-        )}
       </div>
-      <div className="card-body">
-        <span className={`card-category cat-${car.category}`}>
-          {car.category === 'penumpang' ? 'Penumpang' : car.category === 'mewah' ? 'Mewah' : 'Klasik'}
-        </span>
-        <div className="card-title">{car.name}</div>
-        <div className="card-price">
-          Harga Awal: <strong>{formatRupiah(car.initial_price)}</strong>
-        </div>
-        {auc && auc.status === 'active' && (
-          <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(249,115,22,0.08)', borderRadius: 8 }}>
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 2 }}>Penawaran Tertinggi</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--orange)' }}>{formatRupiah(auc.current_highest_bid)}</div>
+
+      <div className="card-content-section">
+        <h2 className="card-title-lg">{namaMobil}</h2>
+
+        {statusLelang === 'active' && hargaTertinggi > 0 && (
+          <div className="highest-bid-box-dark">
+            <div className="highest-bid-label-dark">Penawaran Tertinggi</div>
+            <div className="highest-bid-value-dark">{formatRupiah(hargaTertinggi)}</div>
           </div>
         )}
-      </div>
-      <div className="card-footer">
-        {auc && auc.status === 'active' ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text3)' }}>
-            <Clock size={12} />
-            <BidTimer endTime={auc.end_time} />
-          </div>
-        ) : (
-          <span style={{ fontSize: 12, color: 'var(--text3)' }}>{auc?.status === 'upcoming' ? 'Segera dimulai' : 'Lelang berakhir'}</span>
+
+        <div className="card-price-lg">{formatRupiah(hargaAwal)}</div>
+
+        {statusLelang === 'active' && waktuLelangSelesai && (
+          <CountdownTimer endTime={waktuLelangSelesai} />
         )}
-        <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/cars/${car.id}`); }}>
-          <Eye size={13} /> Lihat
-        </button>
+
+        {lokasi && (
+          <div className="card-location">
+            {lokasi}
+          </div>
+        )}
       </div>
     </div>
   );
