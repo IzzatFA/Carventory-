@@ -1,0 +1,59 @@
+const Joi = require('joi');
+
+const currentYear = new Date().getFullYear();
+
+const create = {
+  body: Joi.object().keys({
+    car_id: Joi.string().optional(), // optional custom ID
+    brand: Joi.string().required(),
+    model: Joi.string().required(),
+    year: Joi.number().integer().min(1900).max(currentYear + 1).required(),
+    starting_price: Joi.number().positive().required(),
+    description: Joi.string().max(2000).optional(),
+    status: Joi.string().valid('pending', 'active', 'sold').default('pending')
+  })
+};
+
+const update = {
+  params: Joi.object().keys({
+    id: Joi.number().integer().required()
+  }),
+  body: Joi.object().keys({
+    car_id: Joi.string().optional(),
+    brand: Joi.string().optional(),
+    model: Joi.string().optional(),
+    year: Joi.number().integer().min(1900).max(currentYear + 1).optional(),
+    starting_price: Joi.number().positive().optional(),
+    description: Joi.string().max(2000).optional(),
+    status: Joi.string().valid('pending', 'active', 'sold').optional()
+  }).min(1) // Ensure at least one field is provided for update
+};
+
+const updateStatus = {
+  params: Joi.object().keys({
+    id: Joi.number().integer().required()
+  }),
+  body: Joi.object().keys({
+    status: Joi.string().valid('pending', 'active', 'sold').required()
+  })
+};
+
+const getById = {
+  params: Joi.object().keys({
+    id: Joi.number().integer().required()
+  })
+};
+
+const deleteCar = {
+  params: Joi.object().keys({
+    id: Joi.number().integer().required()
+  })
+};
+
+module.exports = {
+  create,
+  update,
+  updateStatus,
+  getById,
+  deleteCar
+};
