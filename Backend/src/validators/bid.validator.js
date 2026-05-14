@@ -16,6 +16,10 @@ const getBidsByAuction = {
 const getByUser = {
   params: Joi.object().keys({
     userId: Joi.number().integer().required()
+  }),
+  query: Joi.object().keys({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(50).default(20)
   })
 };
 

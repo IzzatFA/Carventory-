@@ -1,9 +1,11 @@
 const express = require('express');
 const transactionController = require('../controllers/transaction.controller');
 const topupController = require('../controllers/topup.controller');
+const buyNowController = require('../controllers/buyNow.controller');
 const validate = require('../middleware/validate');
 const transactionValidation = require('../validators/transaction.validator');
 const topupValidation = require('../validators/topup.validator');
+const buyNowValidation = require('../validators/buyNow.validator');
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
 
@@ -13,6 +15,12 @@ const router = express.Router();
 router.post('/topup', auth, validate(topupValidation.topUp), topupController.topUp);
 router.get('/topup/balance', auth, topupController.getBalance);
 router.get('/topup/history', auth, topupController.getHistory);
+
+// Beli langsung
+router.post('/buy-now', auth, validate(buyNowValidation.buyNow), buyNowController.buyNow);
+
+// Riwayat transaksi milik user yang sedang login
+router.get('/my', auth, validate(transactionValidation.getMyTransactions), transactionController.getMyTransactions);
 
 // Admin only routes
 router.get('/', auth, authorize('admin'), transactionController.getAllTransactions);

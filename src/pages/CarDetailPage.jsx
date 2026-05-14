@@ -10,8 +10,8 @@ import './CarDetailPage.css';
 export default function CarDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const { cars, auctions, getAuctionBids, placeBid } = useAuction();
+  const { currentUser, buyNow } = useAuth();
+  const { cars, auctions, getAuctionBids, placeBid, refreshData } = useAuction();
 
   const car = cars.find((c) => String(c.id) === id);
   const auction = auctions.find((a) => String(a.car_id) === id);
@@ -25,6 +25,7 @@ export default function CarDetailPage() {
   const [bidSuccess, setBidSuccess] = useState('');
   const [buyNowMessage, setBuyNowMessage] = useState('');
   const [buyNowError, setBuyNowError] = useState('');
+  const [buyNowLoading, setBuyNowLoading] = useState(false);
 
   if (!car || ((car.is_verified !== true && car.status !== 'active') && !canViewPendingCar)) {
     return (
@@ -58,8 +59,7 @@ export default function CarDetailPage() {
     setBidSuccess('');
   };
 
-  const handleBuyNow = () => {
-    // Placeholder: sambungkan ke endpoint transaksi beli langsung saat backend sudah tersedia.
+  const handleBuyNow = async () => {
     setBuyNowError('');
     setBuyNowMessage('');
 
@@ -68,22 +68,30 @@ export default function CarDetailPage() {
       return;
     }
 
-    if (currentUser.is_verified === false) {
-      setBuyNowError('Akun Anda belum diverifikasi admin.');
-      return;
-    }
-
     if (!hasBuyNowPrice) {
       setBuyNowError('Harga langsung beli belum tersedia.');
       return;
     }
 
-    if ((Number(currentUser.deposit_balance) || 0) < buyNowPrice) {
-      setBuyNowError('Saldo belum cukup untuk beli langsung.');
+    const userBalance = Number(currentUser.deposit_balance) || 0;
+    if (userBalance < buyNowPrice) {
+      setBuyNowError(
+        `Saldo tidak cukup. Saldo Anda: ${formatRupiah(userBalance)}, dibutuhkan: ${formatRupiah(buyNowPrice)}.`
+      );
       return;
     }
 
-    setBuyNowMessage(`Placeholder beli langsung untuk ${formatRupiah(buyNowPrice)}.`);
+    setBuyNowLoading(true);
+    const result = await buyNow(car.id);
+    setBuyNowLoading(false);
+
+    if (!result.success) {
+      setBuyNowError(result.error);
+      return;
+    }
+
+    setBuyNowMessage(`Pembelian berhasil! ${formatRupiah(buyNowPrice)} telah dikurangi dari saldo Anda.`);
+    await refreshData();
   };
 
   const handleBidSubmit = async (event) => {
@@ -137,9 +145,10 @@ export default function CarDetailPage() {
         className="btn btn-primary btn-lg detail-buy-now-button"
         type="button"
         onClick={handleBuyNow}
-        disabled={!hasBuyNowPrice}
+        disabled={!hasBuyNowPrice || buyNowLoading || car.status === 'sold'}
       >
-        <ShoppingCart size={18} /> {currentUser ? 'Beli Sekarang' : 'Masuk untuk Membeli'}
+        <ShoppingCart size={18} />
+        {buyNowLoading ? 'Memproses...' : car.status === 'sold' ? 'Sudah Terjual' : currentUser ? 'Beli Sekarang' : 'Masuk untuk Membeli'}
       </button>
     </div>
   );

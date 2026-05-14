@@ -3,6 +3,18 @@ const ApiResponse = require('../utils/ApiResponse');
 const ApiError = require('../utils/ApiError');
 
 const transactionController = {
+  async getMyTransactions(req, res, next) {
+    try {
+      const { page, limit, type } = req.query;
+      const { transactions, meta } = await transactionService.getMyTransactions(
+        req.user.id, page, limit, type
+      );
+      return ApiResponse.success(res, 'Transaction history retrieved successfully', transactions, meta);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async createTransaction(req, res, next) {
     try {
       const transaction = await transactionService.createTransaction(req.body, req.user.id);

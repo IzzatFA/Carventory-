@@ -26,13 +26,13 @@ const bidController = {
   async getBidsByUser(req, res, next) {
     try {
       const { userId } = req.params;
-      // Normal users can only see their own bids; admins can see any user's bids
       if (req.user.role !== 'admin' && req.user.id !== parseInt(userId)) {
         return next(ApiError.forbidden('You can only access your own bids'));
       }
-      
-      const bids = await bidService.getBidsByUser(userId);
-      return ApiResponse.success(res, 'User bids retrieved successfully', bids);
+
+      const { page, limit } = req.query;
+      const { bids, meta } = await bidService.getBidsByUser(userId, page, limit);
+      return ApiResponse.success(res, 'User bids retrieved successfully', bids, meta);
     } catch (error) {
       next(error);
     }

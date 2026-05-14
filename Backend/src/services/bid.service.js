@@ -73,15 +73,31 @@ const bidService = {
     return data;
   },
 
-  async getBidsByUser(userId) {
-    const { data, error } = await supabase
+  async getBidsByUser(userId, page = 1, limit = 20) {
+    const offset = (page - 1) * limit;
+
+    // Gunakan * pada auction agar tidak crash jika kolom 'status' belum ada
+    const { data, error, count } = await supabase
       .from('bid')
-      .select('*, auction:auction(*, car:cars(brand, model))')
+      .select(
+        '*, auction:auction(id, winner_id, car_id, current_highest_bid, start_time, end_time, car:cars(id, brand, model, year))',
+        { count: 'exact' }
+      )
       .eq('user_id', userId)
-      .order('bid_time', { ascending: false });
+      .order('bid_time', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw ApiError.internal('Failed to fetch user bids');
-    return data;
+
+    return {
+      bids: data,
+      meta: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        totalPages: Math.ceil(count / limit)
+      }
+    };
   }
 };
 

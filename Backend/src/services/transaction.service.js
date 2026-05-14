@@ -68,6 +68,34 @@ const transactionService = {
     return data;
   },
 
+  async getMyTransactions(userId, page = 1, limit = 10, type = null) {
+    const offset = (page - 1) * limit;
+
+    // Gunakan select sederhana agar tidak crash jika kolom car_id belum ada di DB.
+    // Frontend akan resolve info mobil dari AuctionContext jika car_id tersedia.
+    let query = supabase
+      .from('transaction')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('transaction_date', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (type) query = query.eq('type', type);
+
+    const { data, error, count } = await query;
+    if (error) throw ApiError.internal('Failed to fetch transaction history');
+
+    return {
+      transactions: data,
+      meta: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        totalPages: Math.ceil(count / limit)
+      }
+    };
+  },
+
   async updateStatus(id, payment_status, adminId) {
     const { data, error } = await supabase
       .from('transaction')
