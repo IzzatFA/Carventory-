@@ -12,9 +12,11 @@ import BiddingRoom from './pages/BiddingRoom';
 import BidHistoryPage from './pages/BidHistoryPage';
 import TopUpPage from './pages/TopUpPage';
 import ProfilePage from './pages/ProfilePage';
-import AuctionsPage from './pages/AuctionsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import ReviewCarPage from './pages/admin/ReviewCarPage';
 import SellerDashboard from './pages/seller/SellerDashboard';
+import AddCarPage from './pages/seller/AddCarPage';
+import EditCarPage from './pages/seller/EditCarPage';
 
 const AUTH_PATHS = ['/login', '/register'];
 
@@ -34,14 +36,16 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/auctions" element={<AuctionsPage />} />
           <Route path="/auctions/:id" element={<BiddingRoom />} />
           <Route path="/cars/:id" element={<CarDetailPage />} />
           <Route path="/history" element={<BidHistoryPage />} />
           <Route path="/topup" element={<TopUpPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/seller" element={<SellerDashboard />} />
+          <Route path="/seller/cars/add" element={<AddCarPage />} />
+          <Route path="/seller/cars/:id/edit" element={<EditCarPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/review-cars/:id" element={<ReviewCarPage />} />
           <Route path="*" element={<div className="container" style={{padding:'60px 0',textAlign:'center'}}><h2>404 — Halaman tidak ditemukan</h2></div>} />
         </Routes>
       </main>

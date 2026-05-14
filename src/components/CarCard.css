@@ -154,6 +154,24 @@
     opacity: 0.5;
 }
 
+.auction-upcoming-box {
+    width: 100%;
+    max-width: 330px;
+    min-height: 48px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: #354458;
+    color: #de8953;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+}
+
 /* Teks Lokasi */
 .card-location {
     font-size: 15px;

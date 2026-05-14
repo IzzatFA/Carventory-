@@ -20,6 +20,7 @@ export default function CarCard({ data }) {
     lokasi,
     statusLelang
   } = data;
+  const isUpcoming = statusLelang === 'upcoming';
 
   const handleCardClick = () => {
     navigate(`/cars/${id}`);
@@ -64,6 +65,10 @@ export default function CarCard({ data }) {
 
         {statusLelang === 'active' && waktuLelangSelesai && (
           <CountdownTimer endTime={waktuLelangSelesai} />
+        )}
+
+        {isUpcoming && (
+          <div className="auction-upcoming-box">Belum mulai</div>
         )}
 
         {lokasi && (

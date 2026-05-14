@@ -237,6 +237,13 @@
   overflow-wrap: anywhere;
 }
 
+.auction-starting-price {
+  font-size: 18px !important;
+  line-height: 1.2 !important;
+  font-weight: 800 !important;
+  color: var(--text) !important;
+}
+
 .detail-bid-form input {
   width: 100%;
   height: 44px;
@@ -257,24 +264,74 @@
   box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.13);
 }
 
+.detail-bid-form {
+  margin-bottom: 24px;
+}
+
 .detail-bid-button {
   width: min(190px, 100%);
-  margin: 0 auto;
+  margin: 12px auto 0;
   display: flex;
-  background: #2fc2bd;
+  background: var(--orange, #f97316);
   color: #fff;
   border-radius: 12px;
   font-size: 18px;
-  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.35);
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.32);
 }
 
 .detail-bid-button:hover {
-  background: #27ada9;
-  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.42);
+  background: #ea580c;
+  box-shadow: 0 10px 22px rgba(249, 115, 22, 0.42);
 }
 
 .detail-bid-alert {
   margin-bottom: 12px;
+}
+
+.buy-now-card {
+  margin: 0 0 22px;
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.buy-now-card span {
+  display: block;
+  color: var(--text2);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.buy-now-card strong {
+  display: block;
+  color: #fb923c;
+  font-size: clamp(18px, 2.4vw, 24px);
+  line-height: 1.1;
+  font-weight: 900;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
+.detail-buy-now-button {
+  width: 100%;
+  display: flex;
+  background: var(--orange, #f97316);
+  color: #fff;
+  border-radius: 12px;
+  font-size: 16px;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.32);
+}
+
+.detail-buy-now-button:hover {
+  background: #ea580c;
+  box-shadow: 0 10px 22px rgba(249, 115, 22, 0.42);
+}
+
+.detail-buy-now-button:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .auction-ended-note,

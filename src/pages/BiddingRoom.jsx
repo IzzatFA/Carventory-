@@ -34,7 +34,7 @@ export default function BiddingRoom() {
         <div className="empty-state">
           <AlertCircle size={46} className="bidding-empty-icon" />
           <h3>Lelang tidak ditemukan</h3>
-          <button className="btn btn-primary" onClick={() => navigate('/auctions')}>
+          <button className="btn btn-primary" onClick={() => navigate('/catalog')}>
             Kembali
           </button>
         </div>

@@ -61,7 +61,7 @@ export default function BidHistoryPage() {
           <div className="empty-state-icon">📋</div>
           <h3>Belum Ada Riwayat Penawaran</h3>
           <p style={{ marginBottom: 20 }}>Mulai menawar di lelang aktif</p>
-          <button className="btn btn-primary" onClick={() => navigate('/auctions')}>Lihat Lelang</button>
+          <button className="btn btn-primary" onClick={() => navigate('/catalog')}>Lihat Katalog</button>
         </div>
       ) : (
         <div className="table-wrap">

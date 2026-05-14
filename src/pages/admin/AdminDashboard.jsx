@@ -9,10 +9,49 @@ import './AdminDashboard.css';
 
 const tabs = [
   ['overview', 'Overview'],
+  ['pending', 'Pending'],
   ['cars', 'Kendaraan'],
   ['users', 'Pengguna'],
   ['auctions', 'Lelang'],
 ];
+
+const PAGE_SIZE = 15;
+
+const getPagedRows = (rows, page) => {
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+
+  return {
+    currentPage,
+    totalPages,
+    rows: rows.slice(start, start + PAGE_SIZE),
+  };
+};
+
+function AdminPagination({ currentPage, totalPages, onPageChange }) {
+  return (
+    <div className="admin-pagination">
+      <button
+        className="btn btn-ghost btn-sm"
+        type="button"
+        disabled={currentPage === 1}
+        onClick={() => onPageChange((value) => Math.max(1, value - 1))}
+      >
+        Sebelumnya
+      </button>
+      <span>Halaman {currentPage} dari {totalPages}</span>
+      <button
+        className="btn btn-ghost btn-sm"
+        type="button"
+        disabled={currentPage === totalPages}
+        onClick={() => onPageChange((value) => Math.min(totalPages, value + 1))}
+      >
+        Berikutnya
+      </button>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const { currentUser } = useAuth();
@@ -20,6 +59,11 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('overview');
   const [users, setUsers] = useState([]);
+  const [overviewCarsPage, setOverviewCarsPage] = useState(1);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [carsPage, setCarsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [auctionsPage, setAuctionsPage] = useState(1);
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== 'admin') return;
@@ -46,6 +90,13 @@ export default function AdminDashboard() {
   const activeAuctions = auctions.filter((auction) => auction.status === 'active').length;
   const verifiedUsers = users.filter((user) => user.is_verified !== false && user.role !== 'admin').length;
   const regularUsers = users.filter((user) => user.role !== 'admin');
+  const pendingCars = cars.filter((car) => car.is_verified === false || car.status === 'pending');
+  const latestCars = cars.slice().reverse();
+  const latestCarsPage = getPagedRows(latestCars, overviewCarsPage);
+  const pendingCarsPage = getPagedRows(pendingCars, pendingPage);
+  const allCarsPage = getPagedRows(cars, carsPage);
+  const regularUsersPage = getPagedRows(regularUsers, usersPage);
+  const auctionsListPage = getPagedRows(auctions, auctionsPage);
 
   const toggleVerify = (user) => {
     setUsers((prev) => prev.map((item) =>
@@ -74,9 +125,9 @@ export default function AdminDashboard() {
       <div className="stats-grid">
         {[
           { label: 'Total Kendaraan', value: cars.length, color: 'var(--orange)' },
+          { label: 'Pending Review', value: pendingCars.length, color: 'var(--danger)' },
           { label: 'Lelang Aktif', value: activeAuctions, color: 'var(--success)' },
           { label: 'User Terverifikasi', value: verifiedUsers, color: 'var(--info)' },
-          { label: 'Total Pengguna', value: regularUsers.length, color: 'var(--warning)' },
         ].map(({ label, value, color }) => (
           <div className="stat-card" key={label}>
             <div className="stat-value" style={{ color }}>{value}</div>
@@ -102,18 +153,29 @@ export default function AdminDashboard() {
         <div className="admin-overview-grid">
           <section className="admin-panel">
             <h2>Kendaraan Terbaru</h2>
-            {cars.slice(-4).reverse().map((car) => (
-              <article className="admin-list-item" key={car.id}>
-                {car.image_url && <img className="admin-car-thumb" src={car.image_url} alt="" />}
-                <div className="admin-list-body">
-                  <strong>{car.model ? `${car.brand} ${car.model}` : car.name}</strong>
-                  <span>{formatRupiah(car.starting_price || car.initial_price)}</span>
-                </div>
-                <span className={`badge cat-${car.category || 'penumpang'}`}>
-                  {categoryLabel[car.category] || car.category || 'Penumpang'}
-                </span>
-              </article>
-            ))}
+            {latestCars.length === 0 ? (
+              <div className="admin-empty-cell">Belum ada kendaraan.</div>
+            ) : (
+              <>
+                {latestCarsPage.rows.map((car) => (
+                  <article className="admin-list-item" key={car.id}>
+                    {car.image_url && <img className="admin-car-thumb" src={car.image_url} alt="" />}
+                    <div className="admin-list-body">
+                      <strong>{car.model ? `${car.brand} ${car.model}` : car.name}</strong>
+                      <span>{formatRupiah(car.starting_price || car.initial_price)}</span>
+                    </div>
+                    <span className={`badge cat-${car.category || 'penumpang'}`}>
+                      {categoryLabel[car.category] || car.category || 'Penumpang'}
+                    </span>
+                  </article>
+                ))}
+                <AdminPagination
+                  currentPage={latestCarsPage.currentPage}
+                  totalPages={latestCarsPage.totalPages}
+                  onPageChange={setOverviewCarsPage}
+                />
+              </>
+            )}
           </section>
 
           <section className="admin-panel">
@@ -129,6 +191,65 @@ export default function AdminDashboard() {
               </div>
             ))}
           </section>
+        </div>
+      )}
+
+      {tab === 'pending' && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kendaraan</th>
+                <th>Kategori</th>
+                <th>Harga Awal</th>
+                <th>No. Rangka</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingCars.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="admin-empty-cell">Tidak ada kendaraan pending.</td>
+                </tr>
+              ) : pendingCarsPage.rows.map((car) => (
+                <tr key={car.id}>
+                  <td>
+                    <div className="admin-table-car">
+                      {car.image_url && <img src={car.image_url} alt="" />}
+                      <span>{car.model ? `${car.brand} ${car.model}` : car.name}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`badge cat-${car.category || 'penumpang'}`}>
+                      {categoryLabel[car.category] || car.category || 'Penumpang'}
+                    </span>
+                  </td>
+                  <td className="admin-price">{formatRupiah(car.starting_price || car.initial_price)}</td>
+                  <td className="admin-mono">{car.chassis_number || car.car_id || '-'}</td>
+                  <td>
+                    <span className="badge badge-warning">Pending</span>
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      type="button"
+                      onClick={() => navigate(`/admin/review-cars/${car.id}`)}
+                    >
+                      Review
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {pendingCars.length > 0 && (
+            <AdminPagination
+              currentPage={pendingCarsPage.currentPage}
+              totalPages={pendingCarsPage.totalPages}
+              onPageChange={setPendingPage}
+            />
+          )}
         </div>
       )}
 
@@ -152,7 +273,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {cars.map((car) => (
+                {allCarsPage.rows.map((car) => (
                   <tr key={car.id}>
                     <td>
                       <div className="admin-table-car">
@@ -176,6 +297,13 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+            {cars.length > 0 && (
+              <AdminPagination
+                currentPage={allCarsPage.currentPage}
+                totalPages={allCarsPage.totalPages}
+                onPageChange={setCarsPage}
+              />
+            )}
           </div>
         </div>
       )}
@@ -193,7 +321,11 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {regularUsers.map((user) => (
+              {regularUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="admin-empty-cell">Belum ada pengguna.</td>
+                </tr>
+              ) : regularUsersPage.rows.map((user) => (
                 <tr key={user.id}>
                   <td className="admin-user-name">{user.username || user.name}</td>
                   <td className="admin-muted">{user.email}</td>
@@ -230,6 +362,13 @@ export default function AdminDashboard() {
               ))}
             </tbody>
           </table>
+          {regularUsers.length > 0 && (
+            <AdminPagination
+              currentPage={regularUsersPage.currentPage}
+              totalPages={regularUsersPage.totalPages}
+              onPageChange={setUsersPage}
+            />
+          )}
         </div>
       )}
 
@@ -245,7 +384,11 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {auctions.map((auction) => {
+              {auctions.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="admin-empty-cell">Belum ada lelang.</td>
+                </tr>
+              ) : auctionsListPage.rows.map((auction) => {
                 const car = cars.find((item) => String(item.id) === String(auction.car_id));
                 const carName = car ? (car.model ? `${car.brand} ${car.model}` : car.name) : '-';
 
@@ -264,6 +407,13 @@ export default function AdminDashboard() {
               })}
             </tbody>
           </table>
+          {auctions.length > 0 && (
+            <AdminPagination
+              currentPage={auctionsListPage.currentPage}
+              totalPages={auctionsListPage.totalPages}
+              onPageChange={setAuctionsPage}
+            />
+          )}
         </div>
       )}
     </div>
