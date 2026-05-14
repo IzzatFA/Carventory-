@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'user',
+  deposit_balance DECIMAL(15,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -21,8 +22,10 @@ CREATE TABLE IF NOT EXISTS cars (
   model VARCHAR(100) NOT NULL,
   year INTEGER NOT NULL,
   starting_price DECIMAL(15,2) NOT NULL,
+  buy_now_price DECIMAL(15,2),
   status VARCHAR(50) NOT NULL DEFAULT 'pending',
   description TEXT,
+  image_url VARCHAR(2048),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -38,7 +41,7 @@ CREATE TABLE IF NOT EXISTS auction (
 
 CREATE TABLE IF NOT EXISTS bid (
   id SERIAL PRIMARY KEY,
-  bid_ammount DECIMAL(15,2) NOT NULL,
+  bid_amount DECIMAL(15,2) NOT NULL,
   bid_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   auction_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL
@@ -109,10 +112,62 @@ CREATE INDEX IF NOT EXISTS idx_transaction_auction_id ON transaction(auction_id)
 CREATE INDEX IF NOT EXISTS idx_admin_log_admin_id ON admin_log(admin_id);
 
 
--- 4. Initial Setup / Seed (Optional)
+-- 4. RPC Functions
+
+-- Digunakan oleh sistem top up untuk atomic increment deposit_balance.
+-- Jalankan query ini di Supabase SQL Editor jika belum ada.
+CREATE OR REPLACE FUNCTION increment_user_balance(uid INTEGER, add_amount DECIMAL)
+RETURNS DECIMAL
+LANGUAGE sql
+AS $$
+  UPDATE users
+  SET deposit_balance = COALESCE(deposit_balance, 0) + add_amount
+  WHERE id = uid
+  RETURNING deposit_balance;
+$$;
+
+-- Digunakan oleh sistem beli langsung untuk atomic decrement deposit_balance.
+-- WHERE clause memastikan hanya berjalan jika saldo mencukupi (atomic check + deduct).
+CREATE OR REPLACE FUNCTION decrement_user_balance(uid INTEGER, sub_amount DECIMAL)
+RETURNS DECIMAL
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_balance DECIMAL;
+BEGIN
+  UPDATE users
+  SET deposit_balance = deposit_balance - sub_amount
+  WHERE id = uid AND deposit_balance >= sub_amount
+  RETURNING deposit_balance INTO new_balance;
+
+  IF new_balance IS NULL THEN
+    RAISE EXCEPTION 'Saldo tidak cukup untuk melakukan pembelian ini';
+  END IF;
+
+  RETURN new_balance;
+END;
+$$;
+
+-- Pastikan kolom buy_now_price ada di tabel cars
+ALTER TABLE cars ADD COLUMN IF NOT EXISTS buy_now_price DECIMAL(15,2);
+
+-- Tambah car_id ke tabel transaction untuk mendukung riwayat pembelian langsung
+ALTER TABLE transaction ADD COLUMN IF NOT EXISTS car_id INTEGER;
+ALTER TABLE transaction DROP CONSTRAINT IF EXISTS fk_transaction_car;
+ALTER TABLE transaction ADD CONSTRAINT fk_transaction_car
+  FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_transaction_car_id ON transaction(car_id);
+
+-- Update constraint tipe transaksi agar mendukung buy_now
+ALTER TABLE transaction DROP CONSTRAINT IF EXISTS chk_transaction_type;
+ALTER TABLE transaction ADD CONSTRAINT chk_transaction_type
+  CHECK (type IN ('topup', 'auction_payment', 'buy_now', 'refund'));
+
+
+-- 5. Initial Setup / Seed (Optional)
 -- Insert a default admin account
 -- The password is 'admin123' (hashed with bcrypt, 12 rounds)
 -- Note: It's recommended to create users via the API to ensure proper hashing
--- INSERT INTO users (username, email, password, role) 
+-- INSERT INTO users (username, email, password, role)
 -- VALUES ('Super Admin', 'admin@carventory.id', '$2a$12$R9h/cIPz0gi.URNNX3rub2A9WEsyTUK1D8.oXnO1nE0P0m0wZ4qVq', 'admin')
 -- ON CONFLICT (email) DO NOTHING;

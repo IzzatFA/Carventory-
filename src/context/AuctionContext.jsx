@@ -36,10 +36,10 @@ export const AuctionProvider = ({ children }) => {
     setSocket(newSocket);
 
     newSocket.on('new_bid', (data) => {
-      setBids((prev) => [data.bid, ...prev]);
+      setBids((prev) => [data, ...prev]);
       setAuctions((prev) =>
         prev.map((a) =>
-          a.id === data.auctionId ? { ...a, current_highest_bid: data.bid.bid_ammount } : a
+          a.id === data.auction_id ? { ...a, current_highest_bid: data.bid_amount } : a
         )
       );
     });
@@ -50,7 +50,7 @@ export const AuctionProvider = ({ children }) => {
   // Place bid through API
   const placeBid = useCallback(async (auctionId, bidAmount) => {
     try {
-      const res = await api.post(`/bids`, { auctionId, bidAmount });
+      const res = await api.post(`/bids`, { auction_id: auctionId, bid_amount: bidAmount });
       return { success: true, bid: res.data.data };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || 'Gagal melakukan penawaran.' };

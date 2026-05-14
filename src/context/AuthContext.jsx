@@ -50,22 +50,39 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const meRes = await api.get('/auth/me');
+      setCurrentUser(meRes.data.data);
+    } catch (err) {
+      console.error('Failed to refresh user', err);
+    }
+  };
+
   const topUp = async (amount) => {
     if (!currentUser) return { success: false };
     try {
-      // Assuming a transaction endpoint exists, but we'll adapt to what backend provides
       const res = await api.post('/transactions/topup', { amount });
-      // update local user state or refetch /me
-      const meRes = await api.get('/auth/me');
-      setCurrentUser(meRes.data.data);
-      return { success: true };
+      await refreshUser();
+      return { success: true, data: res.data.data };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || 'Top up failed' };
     }
   };
 
+  const buyNow = async (carId) => {
+    if (!currentUser) return { success: false, error: 'Silakan login terlebih dahulu' };
+    try {
+      const res = await api.post('/transactions/buy-now', { car_id: carId });
+      await refreshUser();
+      return { success: true, data: res.data.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Gagal melakukan pembelian' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ currentUser, login, register, logout, topUp, loading }}>
+    <AuthContext.Provider value={{ currentUser, login, register, logout, topUp, buyNow, refreshUser, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

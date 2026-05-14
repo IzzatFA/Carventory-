@@ -14,18 +14,15 @@
   margin-bottom: 0;
 }
 
-.seller-layout {
-  display: grid;
-  grid-template-columns: minmax(340px, 480px) minmax(0, 1fr);
-  gap: 22px;
-  align-items: start;
-}
-
 .seller-panel {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 22px;
+}
+
+.seller-list-panel {
+  width: 100%;
 }
 
 .seller-panel-header {
@@ -41,53 +38,36 @@
   font-weight: 800;
 }
 
-.seller-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.seller-table-header {
+  align-items: flex-start;
 }
 
-.seller-form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.seller-textarea {
-  min-height: 116px;
-  resize: vertical;
-}
-
-.seller-file-input {
-  position: relative;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 14px;
-  border: 1.5px dashed rgba(55, 228, 221, 0.34);
-  border-radius: 10px;
-  background: var(--bg3);
-  color: var(--text2);
-  font-size: 13px;
+.seller-table-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--text3);
+  font-size: 12px;
   font-weight: 600;
-  overflow: hidden;
-}
-
-.seller-file-input svg {
-  color: var(--orange);
-  flex-shrink: 0;
-}
-
-.seller-file-input input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
 }
 
 .seller-table-wrap {
   overflow-x: auto;
+}
+
+.seller-car-thumb {
+  width: 72px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg3);
+  color: var(--text3);
+}
+
+.seller-car-thumb.placeholder {
+  border: 1px solid var(--border);
 }
 
 .seller-car-meta {
@@ -104,6 +84,10 @@
   white-space: nowrap;
 }
 
+.seller-price.muted {
+  color: var(--text2);
+}
+
 .seller-actions {
   display: flex;
   gap: 8px;
@@ -111,7 +95,7 @@
 }
 
 .seller-empty {
-  padding: 48px 16px;
+  padding: 58px 16px;
 }
 
 .seller-empty svg {
@@ -119,15 +103,25 @@
   color: var(--text3);
 }
 
-@media (max-width: 980px) {
-  .seller-layout {
-    grid-template-columns: 1fr;
-  }
+.seller-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 18px;
 }
 
-@media (max-width: 620px) {
-  .seller-header {
+.seller-pagination span {
+  color: var(--text3);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .seller-header,
+  .seller-panel-header,
+  .seller-pagination {
+    align-items: flex-start;
     flex-direction: column;
   }
-
 }

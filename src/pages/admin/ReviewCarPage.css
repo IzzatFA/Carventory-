@@ -1,0 +1,36 @@
+@import '../CarDetailPage.css';
+
+.review-car-page .detail-img-badges .badge-success,
+.review-car-page .verification-note {
+  display: none;
+}
+
+.review-panel {
+  min-height: 296px;
+}
+
+.review-action-copy {
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.65;
+  margin-bottom: 22px;
+}
+
+.review-alert {
+  margin-bottom: 16px;
+}
+
+.review-verify-button {
+  width: 100%;
+  background: var(--success);
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.24);
+}
+
+.review-verify-button:hover {
+  background: #16a34a;
+  box-shadow: 0 10px 22px rgba(34, 197, 94, 0.32);
+}
+
+.review-verification-section {
+  border-color: rgba(245, 158, 11, 0.26);
+}

@@ -23,11 +23,10 @@ export default function ProfilePage() {
   const [recentTransactions, setRecentTransactions] = useState([]);
 
   useEffect(() => {
-    if (currentUser) {
-      api.get('/transactions/my')
-        .then(res => setRecentTransactions(res.data.data || []))
-        .catch(err => console.error('Failed to fetch transactions', err));
-    }
+    if (!currentUser) return;
+    api.get('/transactions/my', { params: { limit: 5 } })
+      .then(res => setRecentTransactions(res.data.data || []))
+      .catch(err => console.error('Failed to fetch transactions', err));
   }, [currentUser]);
 
   if (!currentUser) {
@@ -153,6 +152,15 @@ export default function ProfilePage() {
                         : { label: 'Proses', className: 'warning', icon: Clock3 };
                     const StatusIcon = status.icon;
 
+                    const typeConfig = {
+                      topup:           { label: 'Top Up Saldo',        sign: '+', color: 'var(--success)' },
+                      buy_now:         { label: 'Beli Langsung',        sign: '-', color: 'var(--danger)'  },
+                      auction_payment: { label: 'Pembayaran Lelang',    sign: '-', color: 'var(--danger)'  },
+                      refund:          { label: 'Refund',               sign: '+', color: 'var(--success)' },
+                    };
+                    const tc = typeConfig[transaction.type] || typeConfig.topup;
+                    const car = transaction.car || transaction.auction?.car;
+
                     return (
                       <article className="profile-activity-item" key={transaction.id}>
                         <div className="profile-activity-icon">
@@ -161,16 +169,23 @@ export default function ProfilePage() {
 
                         <div className="profile-activity-body">
                           <div className="profile-activity-top">
-                            <strong>Top Up Saldo</strong>
+                            <strong>
+                              {tc.label}
+                              {car && <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text3)', marginLeft: 6 }}>
+                                — {car.brand} {car.model}
+                              </span>}
+                            </strong>
                             <span className={`profile-activity-status ${status.className}`}>
                               <StatusIcon size={12} />
                               {status.label}
                             </span>
                           </div>
 
-                          <span className="profile-activity-amount">+{formatRupiah(transaction.amount)}</span>
-                          <time dateTime={transaction.transaction_date || transaction.created_at}>
-                            {new Date(transaction.transaction_date || transaction.created_at).toLocaleDateString('id-ID', {
+                          <span className="profile-activity-amount" style={{ color: tc.color }}>
+                            {tc.sign}{formatRupiah(transaction.amount)}
+                          </span>
+                          <time dateTime={transaction.created_at || transaction.transaction_date}>
+                            {new Date(transaction.created_at || transaction.transaction_date).toLocaleDateString('id-ID', {
                               day: 'numeric',
                               month: 'long',
                               year: 'numeric',

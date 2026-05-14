@@ -2,6 +2,15 @@ const userService = require('../services/user.service');
 const ApiResponse = require('../utils/ApiResponse');
 
 const userController = {
+  async getMe(req, res, next) {
+    try {
+      const user = await userService.getUserById(req.user.id);
+      return ApiResponse.success(res, 'User retrieved successfully', user);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getAllUsers(req, res, next) {
     try {
       const { page, limit } = req.query;

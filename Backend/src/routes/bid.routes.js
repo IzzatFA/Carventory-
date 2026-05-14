@@ -11,7 +11,7 @@ const router = express.Router();
 router.get('/auction/:auctionId', validate(bidValidation.getBidsByAuction), bidController.getBidsByAuction);
 
 // Protected
-router.get('/user/:userId', auth, bidController.getBidsByUser);
+router.get('/user/:userId', auth, validate(bidValidation.getByUser), bidController.getBidsByUser);
 router.post('/', auth, authorize('user', 'seller', 'admin'), validate(bidValidation.placeBid), bidController.placeBid);
 
 module.exports = router;

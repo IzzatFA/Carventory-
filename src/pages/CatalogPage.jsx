@@ -12,6 +12,22 @@ const CATS = [
   { id: 'klasik', label: 'Klasik' },
 ];
 
+const getAuctionStatus = (auction) => {
+  if (!auction) return 'upcoming';
+
+  const now = Date.now();
+  const startTime = new Date(auction.start_time).getTime();
+  const endTime = new Date(auction.end_time).getTime();
+  const hasStartTime = !Number.isNaN(startTime);
+  const hasEndTime = !Number.isNaN(endTime);
+
+  if (hasStartTime && startTime > now) return 'upcoming';
+  if (hasEndTime && endTime <= now) return 'ended';
+  if (hasStartTime && hasEndTime) return 'active';
+
+  return auction.status || 'active';
+};
+
 const mapToCardData = (car, auction) => {
   if (!car) return null;
 
@@ -23,7 +39,7 @@ const mapToCardData = (car, auction) => {
     waktuLelangSelesai: auction?.end_time,
     gambarMobil: car.image_url,
     lokasi: car.location || 'Jakarta Barat',
-    statusLelang: auction?.status || 'inactive',
+    statusLelang: getAuctionStatus(auction),
   };
 };
 
@@ -42,6 +58,11 @@ export default function CatalogPage() {
 
   const filtered = useMemo(() => {
     return cars
+      .filter(car => car.is_verified === true || car.status === 'active')
+      .filter(car => {
+        const auction = auctions.find(a => String(a.car_id) === String(car.id));
+        return getAuctionStatus(auction) !== 'ended';
+      })
       .filter(car => cat === 'all' || car.category === cat)
       .filter(car => {
         const carName = car.model ? `${car.brand} ${car.model}` : car.name;
@@ -57,7 +78,7 @@ export default function CatalogPage() {
         if (sort === 'price_desc') return priceB - priceA;
         return nameA?.localeCompare(nameB);
       });
-  }, [cars, cat, search, sort]);
+  }, [cars, auctions, cat, search, sort]);
 
   return (
     <div className="page catalog-page">
@@ -117,7 +138,7 @@ export default function CatalogPage() {
         ) : (
           <div className="cars-grid">
             {filtered.map(car => {
-              const auction = auctions.find(a => a.car_id === car.id);
+              const auction = auctions.find(a => String(a.car_id) === String(car.id));
               const cardData = mapToCardData(car, auction);
 
               return cardData ? <CarCard key={car.id} data={cardData} /> : null;
@@ -127,4 +148,4 @@ export default function CatalogPage() {
       </div>
     </div>
   );
-}
+}

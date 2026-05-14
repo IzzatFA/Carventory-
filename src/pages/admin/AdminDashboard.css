@@ -43,6 +43,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  align-items: start;
 }
 
 .admin-panel {
@@ -141,11 +142,32 @@
   font-size: 12px;
 }
 
+.admin-empty-cell {
+  padding: 44px 16px;
+  color: var(--text3);
+  text-align: center;
+  font-weight: 600;
+}
+
 .admin-badge-row,
 .admin-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 18px;
+}
+
+.admin-pagination span {
+  color: var(--text3);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 @media (max-width: 900px) {
@@ -155,5 +177,10 @@
 
   .admin-overview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-pagination {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

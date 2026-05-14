@@ -13,6 +13,22 @@ const FEATURES_DATA = [
   { icon: Star, title: 'Terpercaya', desc: 'Sistem deposit aman dengan gateway terpercaya', color: '#8B5CF6' },
 ];
 
+const getAuctionStatus = (auction) => {
+  if (!auction) return 'inactive';
+
+  const now = Date.now();
+  const startTime = new Date(auction.start_time).getTime();
+  const endTime = new Date(auction.end_time).getTime();
+  const hasStartTime = !Number.isNaN(startTime);
+  const hasEndTime = !Number.isNaN(endTime);
+
+  if (hasStartTime && startTime > now) return 'upcoming';
+  if (hasEndTime && endTime <= now) return 'ended';
+  if (hasStartTime && hasEndTime) return 'active';
+
+  return auction.status || 'active';
+};
+
 const mapToCardData = (car, auction) => {
   if (!car) return null;
 
@@ -24,7 +40,7 @@ const mapToCardData = (car, auction) => {
     waktuLelangSelesai: auction?.end_time,
     gambarMobil: car.image_url,
     lokasi: car.location || 'Jakarta',
-    statusLelang: auction?.status
+    statusLelang: getAuctionStatus(auction)
   };
 };
 
@@ -33,7 +49,11 @@ export default function LandingPage() {
   const { currentUser } = useAuth();
   const { cars, auctions } = useAuction();
   
-  const active = auctions.filter(a => a.status === 'active');
+  const publicCars = cars.filter((car) => car.is_verified === true || car.status === 'active');
+  const active = auctions.filter((auction) => {
+    const car = publicCars.find((item) => String(item.id) === String(auction.car_id));
+    return getAuctionStatus(auction) === 'active' && car;
+  });
   const trending = active.slice(0, 3);
   const heroCta = currentUser
     ? { label: 'Jelajahi Mobil', path: '/catalog' }
@@ -94,14 +114,14 @@ export default function LandingPage() {
               <p className="section-subtitle">Lelang paling banyak diminati saat ini</p>
             </div>
 
-            <button className="btn btn-outline btn-sm" onClick={() => navigate('/auctions')}>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate('/catalog')}>
               Lihat Semua <ArrowRight size={14} />
             </button>
           </div>
 
           <div className="trending-carousel">
             {trending.map(auc => {
-              const car = cars.find(c => c.id === auc.car_id);
+              const car = publicCars.find(c => String(c.id) === String(auc.car_id));
               const cardData = mapToCardData(car, auc);
 
               return cardData ? <CarCard key={auc.id} data={cardData} /> : null;

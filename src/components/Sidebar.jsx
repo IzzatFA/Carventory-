@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Home, Car, Gavel, Clock, User, CreditCard, LayoutDashboard,
-  Bell, LogOut, ChevronRight, Settings, Shield
+  Home, Car, Clock, User, CreditCard, LayoutDashboard,
+  Bell, LogOut
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
@@ -10,7 +10,6 @@ import { useAuction } from '../context/AuctionContext';
 const NAV_ITEMS = [
   { icon: Home, label: 'Beranda', path: '/', roles: ['all'] },
   { icon: Car, label: 'Katalog Mobil', path: '/catalog', roles: ['all'] },
-  { icon: Gavel, label: 'Lelang Aktif', path: '/auctions', roles: ['all'] },
 ];
 
 const USER_NAV = [

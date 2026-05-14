@@ -1,0 +1,5 @@
+@import './EditCarPage.css';
+
+.add-car-page .add-form-body {
+  padding-top: 28px;
+}

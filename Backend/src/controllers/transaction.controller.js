@@ -1,7 +1,20 @@
 const transactionService = require('../services/transaction.service');
 const ApiResponse = require('../utils/ApiResponse');
+const ApiError = require('../utils/ApiError');
 
 const transactionController = {
+  async getMyTransactions(req, res, next) {
+    try {
+      const { page, limit, type } = req.query;
+      const { transactions, meta } = await transactionService.getMyTransactions(
+        req.user.id, page, limit, type
+      );
+      return ApiResponse.success(res, 'Transaction history retrieved successfully', transactions, meta);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async createTransaction(req, res, next) {
     try {
       const transaction = await transactionService.createTransaction(req.body, req.user.id);
@@ -27,8 +40,8 @@ const transactionController = {
       const transaction = await transactionService.getTransactionById(id);
       
       // Ensure only admin or the winner can see this
-      if (req.user.role !== 'admin' && transaction.auction.winner_id !== req.user.id) {
-        return res.status(403).json({ success: false, message: 'Forbidden' });
+      if (req.user.role !== 'admin' && transaction.auction?.winner_id !== req.user.id) {
+        return next(ApiError.forbidden('You do not have permission to access this transaction'));
       }
 
       return ApiResponse.success(res, 'Transaction retrieved successfully', transaction);

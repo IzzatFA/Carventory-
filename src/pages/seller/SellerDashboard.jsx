@@ -1,30 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, CheckCircle, Clock3, Edit, ImagePlus, LockKeyhole, Plus, Save, Trash2, X } from 'lucide-react';
+import { Car, CheckCircle, Clock3, Edit, LockKeyhole, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
 import { formatRupiah } from '../../lib/utils';
 import api from '../../lib/api';
 import './SellerDashboard.css';
 
-const emptyForm = {
-  car_id: '',
-  brand: '',
-  model: '',
-  year: '',
-  category: 'penumpang',
-  chassis_number: '',
-  engine_number: '',
-  starting_price: '',
-  image_url: '',
-  description: '',
-};
-
-const categories = [
-  { value: 'penumpang', label: 'Penumpang' },
-  { value: 'mewah', label: 'Mewah' },
-  { value: 'klasik', label: 'Klasik' },
-];
+const PAGE_SIZE = 15;
 
 const statusCopy = {
   pending: { label: 'Menunggu', className: 'badge-warning', icon: Clock3 },
@@ -36,10 +19,7 @@ export default function SellerDashboard() {
   const { currentUser } = useAuth();
   const { cars, refreshData } = useAuction();
   const navigate = useNavigate();
-  const [form, setForm] = useState(emptyForm);
-  const [imageFile, setImageFile] = useState(null);
-  const [editingCar, setEditingCar] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -47,9 +27,12 @@ export default function SellerDashboard() {
 
   const sellerCars = useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === 'admin') return cars;
     return cars.filter((car) => Number(car.seller_id) === Number(currentUser.id));
   }, [cars, currentUser]);
+
+  const totalPages = Math.max(1, Math.ceil(sellerCars.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCars = sellerCars.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const stats = useMemo(() => ({
     total: sellerCars.length,
@@ -73,86 +56,9 @@ export default function SellerDashboard() {
     );
   }
 
-  const setField = (key) => (event) => {
-    setForm((current) => ({ ...current, [key]: event.target.value }));
-  };
-
-  const resetForm = () => {
-    setForm(emptyForm);
-    setImageFile(null);
-    setEditingCar(null);
-    setError('');
-  };
-
   const showMessage = (text) => {
     setMessage(text);
     setTimeout(() => setMessage(''), 2500);
-  };
-
-  const handleEdit = (car) => {
-    setEditingCar(car);
-    setForm({
-      car_id: car.car_id || '',
-      brand: car.brand || '',
-      model: car.model || '',
-      year: car.year || '',
-      category: car.category || 'penumpang',
-      chassis_number: car.chassis_number || '',
-      engine_number: car.engine_number || '',
-      starting_price: car.starting_price || '',
-      image_url: car.image_url || '',
-      description: car.description || '',
-    });
-    setImageFile(null);
-    setError('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSaving(true);
-    setError('');
-
-    const payload = new FormData();
-    Object.entries({
-      car_id: form.car_id,
-      brand: form.brand.trim(),
-      model: form.model.trim(),
-      year: form.year,
-      category: form.category,
-      chassis_number: form.chassis_number,
-      engine_number: form.engine_number,
-      starting_price: form.starting_price,
-      image_url: form.image_url,
-      description: form.description.trim(),
-    }).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        payload.append(key, value);
-      }
-    });
-
-    if (imageFile) {
-      payload.append('image', imageFile);
-    }
-
-    const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-
-    try {
-      if (editingCar) {
-        await api.put(`/cars/${editingCar.id}`, payload, config);
-        showMessage('Kendaraan berhasil diperbarui.');
-      } else {
-        await api.post('/cars', payload, config);
-        showMessage('Kendaraan berhasil ditambahkan. Status awal: menunggu.');
-      }
-
-      await refreshData();
-      resetForm();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan kendaraan.');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleDelete = async (car) => {
@@ -160,6 +66,7 @@ export default function SellerDashboard() {
     if (!confirmed) return;
 
     try {
+      setError('');
       await api.delete(`/cars/${car.id}`);
       await refreshData();
       showMessage('Kendaraan berhasil dihapus.');
@@ -201,133 +108,63 @@ export default function SellerDashboard() {
         </div>
       </div>
 
-      <div className="seller-layout">
-        <section className="seller-panel">
-          <div className="seller-panel-header">
-            <h2>{editingCar ? 'Edit Kendaraan' : 'Tambah Kendaraan'}</h2>
-            {editingCar && (
-              <button className="btn btn-ghost btn-sm" type="button" onClick={resetForm}>
-                <X size={14} />
-                Batal
-              </button>
-            )}
-          </div>
+      {error && <div className="alert alert-error">{error}</div>}
 
-          {error && <div className="alert alert-error">{error}</div>}
-
-          <form className="seller-form" onSubmit={handleSubmit}>
-            <div className="seller-form-fields">
-              <label>
-                <span className="input-label">Brand Kendaraan</span>
-                <input className="input" value={form.brand} onChange={setField('brand')} required />
-              </label>
-
-              <label>
-                <span className="input-label">Model Kendaraan</span>
-                <input className="input" value={form.model} onChange={setField('model')} required />
-              </label>
-
-              <label>
-                <span className="input-label">Tahun</span>
-                <input className="input" type="number" min="1900" value={form.year} onChange={setField('year')} required />
-              </label>
-
-              <label>
-                <span className="input-label">No. Rangka</span>
-                <input className="input" value={form.chassis_number} onChange={setField('chassis_number')} />
-              </label>
-
-              <label>
-                <span className="input-label">No. Mesin</span>
-                <input className="input" value={form.engine_number} onChange={setField('engine_number')} />
-              </label>
-
-              <label>
-                <span className="input-label">Harga Awal (Rp)</span>
-                <input className="input" type="number" min="1" value={form.starting_price} onChange={setField('starting_price')} required />
-              </label>
-
-              <label>
-                <span className="input-label">URL Gambar</span>
-                <input className="input" type="url" value={form.image_url} onChange={setField('image_url')} />
-              </label>
-
-              <label>
-                <span className="input-label">Upload Gambar</span>
-                <span className="seller-file-input">
-                  <ImagePlus size={18} />
-                  <span>{imageFile ? imageFile.name : 'Pilih gambar untuk bucket car-images'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => setImageFile(event.target.files?.[0] || null)}
-                  />
-                </span>
-              </label>
-
-              <label>
-                <span className="input-label">Deskripsi</span>
-                <textarea
-                  className="input seller-textarea"
-                  value={form.description}
-                  onChange={setField('description')}
-                />
-              </label>
-
-              <label>
-                <span className="input-label">Kategori</span>
-                <select className="input" value={form.category} onChange={setField('category')}>
-                  {categories.map((category) => (
-                    <option key={category.value} value={category.value}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <button className="btn btn-primary" type="submit" disabled={saving}>
-              {editingCar ? <Save size={16} /> : <Plus size={16} />}
-              {saving ? 'Menyimpan...' : editingCar ? 'Simpan Perubahan' : 'Tambah Kendaraan'}
-            </button>
-          </form>
-        </section>
-
-        <section className="seller-panel">
-          <div className="seller-panel-header">
+      <section className="seller-panel seller-list-panel">
+        <div className="seller-panel-header seller-table-header">
+          <div>
             <h2>Kendaraan Saya</h2>
-            <span className="badge badge-orange">{sellerCars.length} unit</span>
+            <span className="seller-table-sub">{sellerCars.length} unit terdaftar</span>
           </div>
+          <button className="btn btn-primary" type="button" onClick={() => navigate('/seller/cars/add')}>
+            <Plus size={15} />
+            Tambah Kendaraan
+          </button>
+        </div>
 
-          {sellerCars.length === 0 ? (
-            <div className="empty-state seller-empty">
-              <Car size={54} strokeWidth={1.5} />
-              <h3>Belum Ada Kendaraan</h3>
-              <p>Tambahkan kendaraan pertama untuk mulai masuk proses listing.</p>
-            </div>
-          ) : (
+        {sellerCars.length === 0 ? (
+          <div className="empty-state seller-empty">
+            <Car size={54} strokeWidth={1.5} />
+            <h3>Belum Ada Kendaraan</h3>
+            <p>Tambahkan kendaraan pertama untuk mulai masuk proses listing.</p>
+          </div>
+        ) : (
+          <>
             <div className="seller-table-wrap">
               <table>
                 <thead>
                   <tr>
+                    <th>Gambar</th>
                     <th>Kendaraan</th>
                     <th>Harga Awal</th>
+                    <th>Harga Langsung Beli</th>
                     <th>Status</th>
                     <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sellerCars.map((car) => {
+                  {pagedCars.map((car) => {
                     const status = statusCopy[car.status] || statusCopy.pending;
                     const StatusIcon = status.icon;
+                    const carName = car.model ? `${car.brand} ${car.model}` : car.name;
 
                     return (
                       <tr key={car.id}>
                         <td>
-                          <strong>{car.brand} {car.model}</strong>
+                          {car.image_url ? (
+                            <img className="seller-car-thumb" src={car.image_url} alt={carName} />
+                          ) : (
+                            <div className="seller-car-thumb placeholder">
+                              <Car size={18} />
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <strong>{carName}</strong>
                           <small className="seller-car-meta">{car.year} {car.car_id ? `- ${car.car_id}` : ''}</small>
                         </td>
                         <td className="seller-price">{formatRupiah(car.starting_price)}</td>
+                        <td className="seller-price muted">{car.buy_now_price ? formatRupiah(car.buy_now_price) : '-'}</td>
                         <td>
                           <span className={`badge ${status.className}`}>
                             <StatusIcon size={12} />
@@ -336,7 +173,7 @@ export default function SellerDashboard() {
                         </td>
                         <td>
                           <div className="seller-actions">
-                            <button className="btn btn-ghost btn-sm" type="button" onClick={() => handleEdit(car)}>
+                            <button className="btn btn-ghost btn-sm" type="button" onClick={() => navigate(`/seller/cars/${car.id}/edit`)}>
                               <Edit size={13} />
                               Edit
                             </button>
@@ -352,9 +189,29 @@ export default function SellerDashboard() {
                 </tbody>
               </table>
             </div>
-          )}
-        </section>
-      </div>
+
+            <div className="seller-pagination">
+              <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+              >
+                Sebelumnya
+              </button>
+              <span>Halaman {currentPage} dari {totalPages}</span>
+              <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+              >
+                Berikutnya
+              </button>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }

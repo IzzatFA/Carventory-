@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Gavel, Info, MapPin, ShieldCheck, TrendingUp } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Gavel, Info, MapPin, ShieldCheck, ShoppingCart, TrendingUp } from 'lucide-react';
 import { formatRupiah, categoryLabel } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
@@ -10,18 +10,24 @@ import './CarDetailPage.css';
 export default function CarDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const { cars, auctions, getAuctionBids, placeBid } = useAuction();
+  const { currentUser, buyNow } = useAuth();
+  const { cars, auctions, getAuctionBids, placeBid, refreshData } = useAuction();
 
   const car = cars.find((c) => String(c.id) === id);
   const auction = auctions.find((a) => String(a.car_id) === id);
   const bids = auction ? getAuctionBids(auction.id) : [];
+  const canViewPendingCar = currentUser && (
+    currentUser.role === 'admin' || Number(car?.seller_id) === Number(currentUser.id)
+  );
 
   const [bidAmount, setBidAmount] = useState('');
   const [bidError, setBidError] = useState('');
   const [bidSuccess, setBidSuccess] = useState('');
+  const [buyNowMessage, setBuyNowMessage] = useState('');
+  const [buyNowError, setBuyNowError] = useState('');
+  const [buyNowLoading, setBuyNowLoading] = useState(false);
 
-  if (!car) {
+  if (!car || ((car.is_verified !== true && car.status !== 'active') && !canViewPendingCar)) {
     return (
       <div className="page">
         <div className="empty-state">
@@ -37,6 +43,8 @@ export default function CarDetailPage() {
 
   const carName = car.model ? `${car.brand} ${car.model}` : car.name;
   const initialPrice = car.starting_price || car.initial_price;
+  const buyNowPrice = Number(car.buy_now_price || car.direct_buy_price || 0);
+  const hasBuyNowPrice = buyNowPrice > 0;
   const minBid = auction ? (Number(auction.current_highest_bid) || initialPrice) + 500000 : initialPrice;
   const statusMap = {
     active: 'Lelang Aktif',
@@ -49,6 +57,41 @@ export default function CarDetailPage() {
     setBidAmount(event.target.value.replace(/\D/g, ''));
     setBidError('');
     setBidSuccess('');
+  };
+
+  const handleBuyNow = async () => {
+    setBuyNowError('');
+    setBuyNowMessage('');
+
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    if (!hasBuyNowPrice) {
+      setBuyNowError('Harga langsung beli belum tersedia.');
+      return;
+    }
+
+    const userBalance = Number(currentUser.deposit_balance) || 0;
+    if (userBalance < buyNowPrice) {
+      setBuyNowError(
+        `Saldo tidak cukup. Saldo Anda: ${formatRupiah(userBalance)}, dibutuhkan: ${formatRupiah(buyNowPrice)}.`
+      );
+      return;
+    }
+
+    setBuyNowLoading(true);
+    const result = await buyNow(car.id);
+    setBuyNowLoading(false);
+
+    if (!result.success) {
+      setBuyNowError(result.error);
+      return;
+    }
+
+    setBuyNowMessage(`Pembelian berhasil! ${formatRupiah(buyNowPrice)} telah dikurangi dari saldo Anda.`);
+    await refreshData();
   };
 
   const handleBidSubmit = async (event) => {
@@ -85,6 +128,30 @@ export default function CarDetailPage() {
     setBidSuccess(`Penawaran ${formatRupiah(amount)} berhasil masuk.`);
     setBidAmount('');
   };
+
+  const renderBuyNowSection = () => (
+    <div className="buy-now-card">
+      <div>
+        <span>Harga Langsung Beli</span>
+        <strong>{hasBuyNowPrice ? formatRupiah(buyNowPrice) : 'Belum tersedia'}</strong>
+      </div>
+      {buyNowError && (
+        <div className="alert alert-error detail-bid-alert">
+          <AlertCircle size={14} /> {buyNowError}
+        </div>
+      )}
+      {buyNowMessage && <div className="alert alert-success detail-bid-alert">{buyNowMessage}</div>}
+      <button
+        className="btn btn-primary btn-lg detail-buy-now-button"
+        type="button"
+        onClick={handleBuyNow}
+        disabled={!hasBuyNowPrice || buyNowLoading || car.status === 'sold'}
+      >
+        <ShoppingCart size={18} />
+        {buyNowLoading ? 'Memproses...' : car.status === 'sold' ? 'Sudah Terjual' : currentUser ? 'Beli Sekarang' : 'Masuk untuk Membeli'}
+      </button>
+    </div>
+  );
 
   return (
     <div className="car-detail-page">
@@ -164,6 +231,11 @@ export default function CarDetailPage() {
                 )}
 
                 <div className="auction-bid-summary">
+                  <span>Harga awal</span>
+                  <strong className="auction-starting-price">{formatRupiah(initialPrice)}</strong>
+                </div>
+
+                <div className="auction-bid-summary">
                   <span>{auction.status === 'ended' ? 'Harga akhir' : 'Bid paling besar'}</span>
                   <strong>{formatRupiah(auction.current_highest_bid)}</strong>
                 </div>
@@ -190,12 +262,21 @@ export default function CarDetailPage() {
                   </form>
                 )}
 
+                {auction.status !== 'ended' && renderBuyNowSection()}
+
                 {auction.status === 'ended' && (
                   <div className="auction-ended-note">Lelang kendaraan ini telah selesai.</div>
                 )}
               </>
             ) : (
-              <div className="auction-empty-note">Belum ada jadwal lelang untuk kendaraan ini.</div>
+              <>
+                <div className="auction-empty-note">Belum ada jadwal lelang untuk kendaraan ini.</div>
+                <div className="auction-bid-summary">
+                  <span>Harga awal</span>
+                  <strong className="auction-starting-price">{formatRupiah(initialPrice)}</strong>
+                </div>
+                {renderBuyNowSection()}
+              </>
             )}
           </aside>
         </div>
@@ -251,7 +332,7 @@ export default function CarDetailPage() {
                     <div
                       className="spec-val"
                       data-tone={
-                        key === 'Harga Awal' ? 'accent' : key === 'Status Verifikasi' && car.is_verified !== false ? 'success' : undefined
+                        key === 'Status Verifikasi' && car.is_verified !== false ? 'success' : undefined
                       }
                     >
                       {value}

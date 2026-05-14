@@ -37,7 +37,7 @@ const bidService = {
       .insert([{
         auction_id: auctionId,
         user_id: userId,
-        bid_ammount: bidAmount,
+        bid_amount: bidAmount,
         bid_time: new Date().toISOString()
       }])
       .select('*, user:users(id, username)')
@@ -51,9 +51,9 @@ const bidService = {
       .eq('id', auctionId);
 
     if (auctionUpdateError) {
-      // If updating auction fails, we should ideally rollback the bid, but in Supabase 
-      // complex transactions are best done via RPC. For this scope, sequential is okay.
-      console.error('Failed to update auction highest bid', auctionUpdateError);
+      // Rollback: delete the bid we just inserted since auction state is inconsistent
+      await supabase.from('bid').delete().eq('id', newBid.id);
+      throw ApiError.internal('Failed to complete bid placement, please try again');
     }
 
     // 6. Emit via WebSocket
@@ -67,21 +67,37 @@ const bidService = {
       .from('bid')
       .select('*, user:users(id, username)')
       .eq('auction_id', auctionId)
-      .order('bid_ammount', { ascending: false });
+      .order('bid_amount', { ascending: false });
 
     if (error) throw ApiError.internal('Failed to fetch bids');
     return data;
   },
 
-  async getBidsByUser(userId) {
-    const { data, error } = await supabase
+  async getBidsByUser(userId, page = 1, limit = 20) {
+    const offset = (page - 1) * limit;
+
+    // Gunakan * pada auction agar tidak crash jika kolom 'status' belum ada
+    const { data, error, count } = await supabase
       .from('bid')
-      .select('*, auction:auction(*, car:cars(brand, model))')
+      .select(
+        '*, auction:auction(id, winner_id, car_id, current_highest_bid, start_time, end_time, car:cars(id, brand, model, year))',
+        { count: 'exact' }
+      )
       .eq('user_id', userId)
-      .order('bid_time', { ascending: false });
+      .order('bid_time', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw ApiError.internal('Failed to fetch user bids');
-    return data;
+
+    return {
+      bids: data,
+      meta: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        totalPages: Math.ceil(count / limit)
+      }
+    };
   }
 };
 
