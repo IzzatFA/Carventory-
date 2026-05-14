@@ -8,6 +8,7 @@ import {
   User,
   LayoutDashboard,
   LogOut,
+  Store,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,6 +36,13 @@ export default function Navbar() {
     navigate('/');
   };
 
+  const displayName = currentUser?.username || currentUser?.name || 'User';
+  const roleLabel = currentUser?.role === 'seller'
+    ? 'Penjual'
+    : currentUser?.role === 'admin'
+      ? 'Admin'
+      : 'Pengguna';
+
   return (
     <aside className="navbar-sidebar">
       <div className="navbar-sidebar-inner">
@@ -49,11 +57,11 @@ export default function Navbar() {
           {currentUser ? (
             <button className="sidebar-user-btn" onClick={() => go('/profile')}>
               <div className="sidebar-avatar">
-                {currentUser.name?.[0] || 'U'}
+                {displayName[0] || 'U'}
               </div>
               <div className="sidebar-user-text">
-                <span>{currentUser.name?.split(' ')[0] || 'User'}</span>
-                <small>Profil</small>
+                <span>{displayName.split(' ')[0]}</span>
+                <small>{roleLabel}</small>
               </div>
             </button>
           ) : (
@@ -105,6 +113,16 @@ export default function Navbar() {
                 >
                   <LayoutDashboard size={31} strokeWidth={2.4} />
                   <span>Admin</span>
+                </button>
+              )}
+
+              {(currentUser.role === 'seller' || currentUser.role === 'admin') && (
+                <button
+                  className={`sidebar-nav-item ${isActive('/seller') ? 'active' : ''}`}
+                  onClick={() => go('/seller')}
+                >
+                  <Store size={31} strokeWidth={2.4} />
+                  <span>Penjual</span>
                 </button>
               )}
             </>

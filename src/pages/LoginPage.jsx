@@ -18,24 +18,17 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const res = login(email, password);
+    try {
+      const res = await login(email, password);
       setLoading(false);
       if (res.success) {
-        navigate('/');
+        navigate(res.user?.role === 'seller' ? '/seller' : '/');
       } else {
         setError(res.error);
       }
-    }, 800);
-  };
-
-  const demoLogin = (type) => {
-    if (type === 'user') {
-      setEmail('budi@example.com');
-      setPassword('password123');
-    } else {
-      setEmail('admin@carventory.id');
-      setPassword('adminpass');
+    } catch {
+      setLoading(false);
+      setError('Login gagal. Silakan coba lagi.');
     }
   };
 
@@ -59,7 +52,7 @@ export default function LoginPage() {
                 <input
                   className="login-input"
                   type="email"
-                  placeholder="Username"
+                  placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   aria-label="Email"
@@ -92,15 +85,6 @@ export default function LoginPage() {
                 {loading ? 'Memproses...' : 'Login'}
               </button>
             </form>
-
-            <div className="demo-shortcuts" aria-label="Demo login shortcuts">
-              <button className="demo-btn" type="button" onClick={() => demoLogin('user')}>
-                Demo User
-              </button>
-              <button className="demo-btn" type="button" onClick={() => demoLogin('admin')}>
-                Demo Admin
-              </button>
-            </div>
 
             <p className="login-register-text">
               Tidak punya akun?{' '}

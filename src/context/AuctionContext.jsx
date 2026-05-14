@@ -90,7 +90,7 @@ export const AuctionProvider = ({ children }) => {
 
   return (
     <AuctionContext.Provider
-      value={{ cars, auctions, bids, notifications, placeBid, getUserBids, getAuctionBids, getUserNotifications, markNotificationRead, addAuction, endAuction, refreshData: fetchData }}
+      value={{ cars, setCars, auctions, bids, notifications, placeBid, getUserBids, getAuctionBids, getUserNotifications, markNotificationRead, addAuction, endAuction, refreshData: fetchData }}
     >
       {children}
     </AuctionContext.Provider>

@@ -21,12 +21,12 @@ export default function RegisterPage() {
     setForm((current) => ({ ...current, [key]: e.target.value }));
   };
 
-  const handleSubmit = (role) => (e) => {
+  const handleSubmit = (role) => async (e) => {
     e.preventDefault();
     setError('');
 
-    if (form.password.length < 6) {
-      setError('Password minimal 6 karakter.');
+    if (form.password.length < 8) {
+      setError('Password minimal 8 karakter.');
       return;
     }
 
@@ -37,15 +37,18 @@ export default function RegisterPage() {
 
     setLoadingRole(role);
 
-    setTimeout(() => {
-      const res = register(form.name, form.email, form.password, '');
+    try {
+      const res = await register(form.name, form.email, form.password, role);
       setLoadingRole('');
       if (res.success) {
         navigate('/');
       } else {
         setError(res.error);
       }
-    }, 800);
+    } catch {
+      setLoadingRole('');
+      setError('Registrasi gagal. Silakan coba lagi.');
+    }
   };
 
   return (
@@ -126,9 +129,9 @@ export default function RegisterPage() {
                 className="register-submit"
                 type="submit"
                 disabled={Boolean(loadingRole)}
-                onClick={handleSubmit('buyer')}
+                onClick={handleSubmit('user')}
               >
-                {loadingRole === 'buyer' ? 'Memproses...' : 'Daftar sebagai Pembeli'}
+                {loadingRole === 'user' ? 'Memproses...' : 'Daftar sebagai Pembeli'}
               </button>
 
               <div className="register-divider">

@@ -14,7 +14,7 @@ const carController = {
 
       const carData = {
         ...req.body,
-        ...(imageUrl && { description: req.body.description + `\nImage: ${imageUrl}` }) // Just saving the URL somewhere for now if no column exists, or alter DB to add image_url.
+        ...(imageUrl && { image_url: imageUrl })
       };
 
       const car = await carService.createCar(carData, req.user.id);
@@ -49,7 +49,15 @@ const carController = {
   async updateCar(req, res, next) {
     try {
       const { id } = req.params;
-      const carData = req.body;
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = await storageService.uploadImage(req.file, 'cars');
+      }
+
+      const carData = {
+        ...req.body,
+        ...(imageUrl && { image_url: imageUrl })
+      };
       const car = await carService.updateCar(id, carData, req.user.id, req.user.role);
       return ApiResponse.success(res, 'Car updated successfully', car);
     } catch (error) {

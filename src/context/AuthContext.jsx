@@ -36,9 +36,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, email, password, phone) => {
+  const register = async (username, email, password, role = 'user') => {
     try {
-      const res = await api.post('/auth/register', { username, email, password, phone });
+      const res = await api.post('/auth/register', { username, email, password, role });
       return { success: true, user: res.data.data };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || 'Registration failed' };
