@@ -54,7 +54,11 @@ export default function ProfilePage() {
   }).length;
 
   const displayName = currentUser.username || currentUser.name || 'User';
-  const roleLabel = currentUser.role === 'admin' ? 'Admin' : 'Pengguna';
+  const roleLabel = currentUser.role === 'admin'
+    ? 'Admin'
+    : currentUser.role === 'seller'
+      ? 'Penjual'
+      : 'Pengguna';
 
   const handleLogout = () => {
     logout();

@@ -14,6 +14,7 @@ import TopUpPage from './pages/TopUpPage';
 import ProfilePage from './pages/ProfilePage';
 import AuctionsPage from './pages/AuctionsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import SellerDashboard from './pages/seller/SellerDashboard';
 
 const AUTH_PATHS = ['/login', '/register'];
 
@@ -39,6 +40,7 @@ function AppLayout() {
           <Route path="/history" element={<BidHistoryPage />} />
           <Route path="/topup" element={<TopUpPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/seller" element={<SellerDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="*" element={<div className="container" style={{padding:'60px 0',textAlign:'center'}}><h2>404 — Halaman tidak ditemukan</h2></div>} />
         </Routes>
