@@ -1,59 +1,61 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { mockAuctions, mockBids, mockNotifications } from '../lib/mockData';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import api from '../lib/api';
+import { io } from 'socket.io-client';
+import { useAuth } from './AuthContext';
 
 const AuctionContext = createContext(null);
+const SOCKET_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:6767';
 
 export const AuctionProvider = ({ children }) => {
-  const [auctions, setAuctions] = useState(mockAuctions);
-  const [bids, setBids] = useState(mockBids);
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const { currentUser } = useAuth();
+  const [auctions, setAuctions] = useState([]);
+  const [cars, setCars] = useState([]);
+  const [bids, setBids] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [socket, setSocket] = useState(null);
 
-  // Simulate real-time: place a bid
-  const placeBid = useCallback((auctionId, userId, carId, bidAmount, availableBalance = Infinity) => {
-    const auction = auctions.find((a) => a.id === auctionId);
-    if (!auction) return { success: false, error: 'Lelang tidak ditemukan.' };
-    if (auction.status !== 'active') return { success: false, error: 'Lelang sudah berakhir atau belum dimulai.' };
-    if (new Date() >= new Date(auction.end_time)) return { success: false, error: 'Waktu lelang telah habis.' };
-    if (bidAmount > availableBalance) return { success: false, error: 'Maaf tapi saldo anda tidak cukup' };
-    if (bidAmount <= (auction.current_highest_bid || auction.initial_price)) {
-      return { success: false, error: `Penawaran harus lebih tinggi dari ${auction.current_highest_bid?.toLocaleString('id-ID')}.` };
+  const fetchData = async () => {
+    try {
+      const [carsRes, auctionsRes] = await Promise.all([
+        api.get('/cars'),
+        api.get('/auctions')
+      ]);
+      setCars(carsRes.data.data || []);
+      setAuctions(auctionsRes.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch data', err);
     }
+  };
 
-    const newBid = {
-      id: `bid-${Date.now()}`,
-      auction_id: auctionId,
-      user_id: userId,
-      car_id: carId,
-      bid_amount: bidAmount,
-      timestamp: new Date().toISOString(),
-      status: 'active',
-    };
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-    setBids((prev) => [newBid, ...prev]);
-    setAuctions((prev) =>
-      prev.map((a) =>
-        a.id === auctionId ? { ...a, current_highest_bid: bidAmount, winner_id: userId } : a
-      )
-    );
+  useEffect(() => {
+    const newSocket = io(SOCKET_URL);
+    setSocket(newSocket);
 
-    // Notify outbid user
-    const prevHighBid = bids.find(
-      (b) => b.auction_id === auctionId && b.bid_amount === auction.current_highest_bid
-    );
-    if (prevHighBid && prevHighBid.user_id !== userId) {
-      const notif = {
-        id: `notif-${Date.now()}`,
-        user_id: prevHighBid.user_id,
-        title: 'Penawaran Anda Terlampaui',
-        message: `Penawaran Anda telah dilampaui oleh penawaran baru sebesar Rp ${bidAmount.toLocaleString('id-ID')}.`,
-        is_read: false,
-        created_at: new Date().toISOString(),
-      };
-      setNotifications((prev) => [notif, ...prev]);
+    newSocket.on('new_bid', (data) => {
+      setBids((prev) => [data.bid, ...prev]);
+      setAuctions((prev) =>
+        prev.map((a) =>
+          a.id === data.auctionId ? { ...a, current_highest_bid: data.bid.bid_ammount } : a
+        )
+      );
+    });
+
+    return () => newSocket.close();
+  }, []);
+
+  // Place bid through API
+  const placeBid = useCallback(async (auctionId, bidAmount) => {
+    try {
+      const res = await api.post(`/bids`, { auctionId, bidAmount });
+      return { success: true, bid: res.data.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Gagal melakukan penawaran.' };
     }
-
-    return { success: true, bid: newBid };
-  }, [auctions, bids]);
+  }, []);
 
   const markNotificationRead = useCallback((notifId) => {
     setNotifications((prev) =>
@@ -62,12 +64,12 @@ export const AuctionProvider = ({ children }) => {
   }, []);
 
   const getUserBids = useCallback((userId) =>
-    bids.filter((b) => b.user_id === userId).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+    bids.filter((b) => b.user_id === userId).sort((a, b) => new Date(b.bid_time) - new Date(a.bid_time)),
     [bids]
   );
 
   const getAuctionBids = useCallback((auctionId) =>
-    bids.filter((b) => b.auction_id === auctionId).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+    bids.filter((b) => b.auction_id === auctionId).sort((a, b) => new Date(b.bid_time) - new Date(a.bid_time)),
     [bids]
   );
 
@@ -76,7 +78,6 @@ export const AuctionProvider = ({ children }) => {
     [notifications]
   );
 
-  // Admin: add car
   const addAuction = useCallback((auction) => {
     setAuctions((prev) => [...prev, auction]);
   }, []);
@@ -89,7 +90,7 @@ export const AuctionProvider = ({ children }) => {
 
   return (
     <AuctionContext.Provider
-      value={{ auctions, bids, notifications, placeBid, getUserBids, getAuctionBids, getUserNotifications, markNotificationRead, addAuction, endAuction }}
+      value={{ cars, auctions, bids, notifications, placeBid, getUserBids, getAuctionBids, getUserNotifications, markNotificationRead, addAuction, endAuction, refreshData: fetchData }}
     >
       {children}
     </AuctionContext.Provider>

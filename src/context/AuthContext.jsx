@@ -1,58 +1,72 @@
-import React, { createContext, useContext, useState } from 'react';
-import { mockUsers } from '../lib/mockData';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../lib/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [users, setUsers] = useState(mockUsers);
+  const [loading, setLoading] = useState(true);
 
-  const login = (email, password) => {
-    // Demo: find user by email, ignore password hashing for mock
-    const user = users.find((u) => u.email === email);
-    if (!user) return { success: false, error: 'Email tidak ditemukan.' };
-    if (user.is_suspended) return { success: false, error: 'Akun Anda telah ditangguhkan.' };
-    setCurrentUser(user);
-    return { success: true, user };
-  };
-
-  const register = (name, email, password, phone) => {
-    const exists = users.find((u) => u.email === email);
-    if (exists) return { success: false, error: 'Email sudah terdaftar.' };
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      name,
-      email,
-      password_hash: 'hashed_' + password,
-      phone,
-      role: 'user',
-      is_verified: false,
-      is_suspended: false,
-      deposit_balance: 0,
-      created_at: new Date().toISOString(),
+  useEffect(() => {
+    const fetchMe = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const res = await api.get('/auth/me');
+          setCurrentUser(res.data.data);
+        } catch (err) {
+          console.error('Failed to fetch user', err);
+          localStorage.removeItem('token');
+        }
+      }
+      setLoading(false);
     };
-    setUsers((prev) => [...prev, newUser]);
-    setCurrentUser(newUser);
-    return { success: true, user: newUser };
+    fetchMe();
+  }, []);
+
+  const login = async (email, password) => {
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      const { user, token } = res.data.data;
+      localStorage.setItem('token', token);
+      setCurrentUser(user);
+      return { success: true, user };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Login failed' };
+    }
   };
 
-  const logout = () => setCurrentUser(null);
-
-  const updateUser = (updatedUser) => {
-    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
-    if (currentUser?.id === updatedUser.id) setCurrentUser(updatedUser);
+  const register = async (username, email, password, phone) => {
+    try {
+      const res = await api.post('/auth/register', { username, email, password, phone });
+      return { success: true, user: res.data.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Registration failed' };
+    }
   };
 
-  const topUp = (amount) => {
+  const logout = () => {
+    localStorage.removeItem('token');
+    setCurrentUser(null);
+  };
+
+  const topUp = async (amount) => {
     if (!currentUser) return { success: false };
-    const updated = { ...currentUser, deposit_balance: currentUser.deposit_balance + amount };
-    updateUser(updated);
-    return { success: true };
+    try {
+      // Assuming a transaction endpoint exists, but we'll adapt to what backend provides
+      const res = await api.post('/transactions/topup', { amount });
+      // update local user state or refetch /me
+      const meRes = await api.get('/auth/me');
+      setCurrentUser(meRes.data.data);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Top up failed' };
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, users, login, register, logout, updateUser, topUp }}>
-      {children}
+    <AuthContext.Provider value={{ currentUser, login, register, logout, topUp, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

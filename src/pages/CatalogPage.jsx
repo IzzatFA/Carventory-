@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal } from 'lucide-react';
-import { mockCars, mockAuctions } from '../lib/mockData';
+import { useAuction } from '../context/AuctionContext';
 import CarCard from '../components/CarCard';
 import './CatalogPage.css';
 
@@ -17,8 +17,8 @@ const mapToCardData = (car, auction) => {
 
   return {
     id: car.id,
-    namaMobil: car.name,
-    hargaAwal: car.initial_price,
+    namaMobil: car.model ? `${car.brand} ${car.model}` : car.name,
+    hargaAwal: car.starting_price || car.initial_price,
     hargaTertinggi: auction?.current_highest_bid || 0,
     waktuLelangSelesai: auction?.end_time,
     gambarMobil: car.image_url,
@@ -32,6 +32,8 @@ export default function CatalogPage() {
   const [cat, setCat] = useState(params.get('category') || 'all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('name');
+  
+  const { cars, auctions } = useAuction();
 
   useEffect(() => {
     const c = params.get('category');
@@ -39,22 +41,30 @@ export default function CatalogPage() {
   }, [params]);
 
   const filtered = useMemo(() => {
-    return mockCars
+    return cars
       .filter(car => cat === 'all' || car.category === cat)
-      .filter(car => car.name.toLowerCase().includes(search.toLowerCase()))
+      .filter(car => {
+        const carName = car.model ? `${car.brand} ${car.model}` : car.name;
+        return carName?.toLowerCase().includes(search.toLowerCase());
+      })
       .sort((a, b) => {
-        if (sort === 'price_asc') return a.initial_price - b.initial_price;
-        if (sort === 'price_desc') return b.initial_price - a.initial_price;
-        return a.name.localeCompare(b.name);
+        const priceA = a.starting_price || a.initial_price;
+        const priceB = b.starting_price || b.initial_price;
+        const nameA = a.model ? `${a.brand} ${a.model}` : a.name;
+        const nameB = b.model ? `${b.brand} ${b.model}` : b.name;
+        
+        if (sort === 'price_asc') return priceA - priceB;
+        if (sort === 'price_desc') return priceB - priceA;
+        return nameA?.localeCompare(nameB);
       });
-  }, [cat, search, sort]);
+  }, [cars, cat, search, sort]);
 
   return (
     <div className="page catalog-page">
       <div className="catalog-page-inner">
         <div className="page-header catalog-header">
           <h1 className="page-title">Katalog Kendaraan</h1>
-          <p className="page-sub">Temukan kendaraan pilihan Anda dari berbagai kategori</p>
+          <p className="page-title">Temukan kendaraan pilihan Anda dari berbagai kategori</p>
         </div>
 
         <div className="filter-container">
@@ -107,7 +117,7 @@ export default function CatalogPage() {
         ) : (
           <div className="cars-grid">
             {filtered.map(car => {
-              const auction = mockAuctions.find(a => a.car_id === car.id);
+              const auction = auctions.find(a => a.car_id === car.id);
               const cardData = mapToCardData(car, auction);
 
               return cardData ? <CarCard key={car.id} data={cardData} /> : null;
@@ -117,4 +127,4 @@ export default function CatalogPage() {
       </div>
     </div>
   );
-}
+}

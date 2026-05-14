@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Gavel, ArrowLeft, AlertCircle, TrendingUp } from 'lucide-react';
-import { mockCars, formatRupiah } from '../lib/mockData';
+import { formatRupiah } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
 import BidTimer from '../components/BidTimer';
@@ -11,10 +11,10 @@ export default function BiddingRoom() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { auctions, getAuctionBids, placeBid } = useAuction();
+  const { cars, auctions, getAuctionBids, placeBid } = useAuction();
 
-  const auction = auctions.find((a) => a.id === id);
-  const car = auction ? mockCars.find((c) => c.id === auction.car_id) : null;
+  const auction = auctions.find((a) => String(a.id) === id);
+  const car = auction ? cars.find((c) => String(c.id) === String(auction.car_id)) : null;
   const bids = getAuctionBids(id);
 
   const [amount, setAmount] = useState('');
@@ -42,34 +42,33 @@ export default function BiddingRoom() {
     );
   }
 
-  const minBid = (auction.current_highest_bid || car.initial_price) + 500000;
+  const carName = car.model ? `${car.brand} ${car.model}` : car.name;
+  const initialPrice = car.starting_price || car.initial_price;
+  const minBid = (Number(auction.current_highest_bid) || initialPrice) + 500000;
   const quickBids = [minBid, minBid + 1000000, minBid + 5000000];
 
-  const handleBid = (event) => {
+  const handleBid = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
 
     if (!currentUser) return setError('Anda harus login untuk menawar.');
-    if (!currentUser.is_verified) return setError('Akun Anda belum diverifikasi admin.');
+    if (currentUser.is_verified === false) return setError('Akun Anda belum diverifikasi admin.');
     if (auctionEnded) return setError('Waktu lelang telah habis.');
 
     const bidValue = Number(amount.replace(/\D/g, ''));
     if (!bidValue) return setError('Masukkan jumlah penawaran yang valid.');
     if (bidValue < minBid) return setError(`Minimum penawaran adalah ${formatRupiah(minBid)}.`);
-    if (bidValue > currentUser.deposit_balance) return setError('Maaf tapi saldo anda tidak cukup');
 
     setLoading(true);
-    setTimeout(() => {
-      const res = placeBid(auction.id, currentUser.id, car.id, bidValue, currentUser.deposit_balance);
-      setLoading(false);
-      if (res.success) {
-        setSuccess(`Penawaran ${formatRupiah(bidValue)} berhasil!`);
-        setAmount('');
-      } else {
-        setError(res.error);
-      }
-    }, 600);
+    const res = await placeBid(auction.id, bidValue);
+    setLoading(false);
+    if (res.success) {
+      setSuccess(`Penawaran ${formatRupiah(bidValue)} berhasil!`);
+      setAmount('');
+    } else {
+      setError(res.error);
+    }
   };
 
   return (
@@ -81,7 +80,7 @@ export default function BiddingRoom() {
       <header className="bidding-header">
         <img
           src={car.image_url}
-          alt={car.name}
+          alt={carName}
           className="bidding-header-img"
           onError={(event) => {
             event.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=200';
@@ -92,7 +91,7 @@ export default function BiddingRoom() {
             <span className="live-dot" />
             <span>LIVE AUCTION</span>
           </div>
-          <h1>{car.name}</h1>
+          <h1>{carName}</h1>
         </div>
         <div className="bidding-header-timer">
           <BidTimer endTime={auction.end_time} onEnd={() => setAuctionEnded(true)} />
@@ -105,7 +104,7 @@ export default function BiddingRoom() {
             <div className="bidding-card-eyebrow">Penawaran Tertinggi Saat Ini</div>
             <div className="bidding-current-price">{formatRupiah(auction.current_highest_bid)}</div>
             <div className="bidding-current-meta">
-              Harga Awal: {formatRupiah(car.initial_price)} | {bids.length} penawaran
+              Harga Awal: {formatRupiah(initialPrice)} | {bids.length} penawaran
             </div>
           </section>
 
@@ -124,17 +123,17 @@ export default function BiddingRoom() {
                   <div key={bid.id} className="bid-item animate-fade">
                     <div className="bid-user">
                       <div className="bid-avatar" data-rank={index === 0 ? 'highest' : 'normal'}>
-                        {index === 0 ? '1' : bid.user_id[4].toUpperCase()}
+                        {index === 0 ? '1' : String(bid.user_id).charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <div className="bid-user-name">
-                          {bid.user_id === currentUser?.id ? 'Anda' : `Penawar ${bid.user_id.slice(-3)}`}
+                          {bid.user_id === currentUser?.id ? 'Anda' : `Penawar ${String(bid.user_id).slice(-3)}`}
                         </div>
-                        <div className="bid-time">{new Date(bid.timestamp).toLocaleTimeString('id-ID')}</div>
+                        <div className="bid-time">{new Date(bid.bid_time || bid.timestamp).toLocaleTimeString('id-ID')}</div>
                       </div>
                     </div>
                     <div className="bid-value-wrap">
-                      <div className="bid-amount">{formatRupiah(bid.bid_amount)}</div>
+                      <div className="bid-amount">{formatRupiah(bid.bid_amount || bid.bid_ammount)}</div>
                       {index === 0 && <div className="bid-rank-label">Tertinggi</div>}
                     </div>
                   </div>

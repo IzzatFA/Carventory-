@@ -2,12 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
-import { mockCars, mockAuctions, formatRupiah } from '../lib/mockData';
+import { formatRupiah } from '../lib/utils';
 import { Clock, Trophy, TrendingDown, Loader } from 'lucide-react';
 
 export default function BidHistoryPage() {
   const { currentUser } = useAuth();
-  const { getUserBids, auctions } = useAuction();
+  const { cars, auctions, getUserBids } = useAuction();
   const navigate = useNavigate();
 
   if (!currentUser) return (
@@ -77,24 +77,27 @@ export default function BidHistoryPage() {
             </thead>
             <tbody>
               {myBids.map(bid => {
-                const car = mockCars.find(c => c.id === bid.car_id);
                 const auc = auctions.find(a => a.id === bid.auction_id);
+                // Depending on the backend output, bid.auction.car might be available, otherwise fallback
+                const car = bid.auction?.car || cars.find(c => String(c.id) === String(auc?.car_id));
                 const status = getBidStatus(bid);
+                const carName = car?.model ? `${car.brand} ${car.model}` : car?.name;
+                
                 return (
                   <tr key={bid.id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {car && <img src={car.image_url} alt={car.name} style={{ width: 44, height: 34, borderRadius: 6, objectFit: 'cover' }} onError={e=>{e.target.style.display='none'}} />}
+                        {car && <img src={car.image_url} alt={carName} style={{ width: 44, height: 34, borderRadius: 6, objectFit: 'cover' }} onError={e=>{e.target.style.display='none'}} />}
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{car?.name || '-'}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text3)' }}>#{bid.auction_id.slice(-6)}</div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{carName || '-'}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text3)' }}>#{String(bid.auction_id).slice(-6)}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ fontWeight: 700, color: 'var(--orange)' }}>{formatRupiah(bid.bid_amount)}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--orange)' }}>{formatRupiah(bid.bid_amount || bid.bid_ammount)}</td>
                     <td style={{ fontSize: 12, color: 'var(--text3)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Clock size={12} /> {new Date(bid.timestamp).toLocaleString('id-ID')}
+                        <Clock size={12} /> {new Date(bid.bid_time || bid.timestamp).toLocaleString('id-ID')}
                       </div>
                     </td>
                     <td>{statusBadge(status)}</td>
