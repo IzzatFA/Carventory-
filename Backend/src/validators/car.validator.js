@@ -7,7 +7,7 @@ const create = {
     car_id: Joi.string().optional(), // optional custom ID
     brand: Joi.string().required(),
     model: Joi.string().required(),
-    year: Joi.number().integer().min(1900).max(currentYear + 1).required(),
+    year: Joi.number().integer().min(1900).max(currentYear).required(),
     starting_price: Joi.number().positive().required(),
     description: Joi.string().max(2000).optional(),
     status: Joi.string().valid('pending', 'active', 'sold').default('pending')
@@ -22,7 +22,7 @@ const update = {
     car_id: Joi.string().optional(),
     brand: Joi.string().optional(),
     model: Joi.string().optional(),
-    year: Joi.number().integer().min(1900).max(currentYear + 1).optional(),
+    year: Joi.number().integer().min(1900).max(currentYear).optional(),
     starting_price: Joi.number().positive().optional(),
     description: Joi.string().max(2000).optional(),
     status: Joi.string().valid('pending', 'active', 'sold').optional()

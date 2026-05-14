@@ -1,4 +1,3 @@
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/database');
 const env = require('../config/env');
@@ -23,10 +22,6 @@ const authService = {
       throw ApiError.conflict('Email already registered');
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     // Insert user
     const { data: newUser, error } = await supabase
       .from('users')
@@ -34,11 +29,11 @@ const authService = {
         {
           username,
           email,
-          password: hashedPassword,
+          password,
           role: role || 'user'
         }
       ])
-      .select('id, username, email, role, created_at')
+      .select('id, username, email, role, deposit_balance, created_at')
       .single();
 
     if (error) {
@@ -56,7 +51,7 @@ const authService = {
   async login(email, password) {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, password, role')
+      .select('id, username, email, password, role, deposit_balance')
       .eq('email', email)
       .single();
 
@@ -65,8 +60,7 @@ const authService = {
     }
 
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    if (password !== user.password) {
       throw ApiError.unauthorized('Invalid email or password');
     }
 

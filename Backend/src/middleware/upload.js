@@ -1,5 +1,4 @@
 const multer = require('multer');
-const ApiError = require('../utils/ApiError');
 
 // Use memory storage for Multer (since we will upload directly to Supabase)
 const storage = multer.memoryStorage();
@@ -9,7 +8,7 @@ const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(ApiError.badRequest('Only image files are allowed!'), false);
+    cb(new Error('Only image files are allowed!'), false);
   }
 };
 

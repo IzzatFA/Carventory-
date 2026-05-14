@@ -37,7 +37,7 @@ const bidService = {
       .insert([{
         auction_id: auctionId,
         user_id: userId,
-        bid_ammount: bidAmount,
+        bid_amount: bidAmount,
         bid_time: new Date().toISOString()
       }])
       .select('*, user:users(id, username)')
@@ -51,9 +51,9 @@ const bidService = {
       .eq('id', auctionId);
 
     if (auctionUpdateError) {
-      // If updating auction fails, we should ideally rollback the bid, but in Supabase 
-      // complex transactions are best done via RPC. For this scope, sequential is okay.
-      console.error('Failed to update auction highest bid', auctionUpdateError);
+      // Rollback: delete the bid we just inserted since auction state is inconsistent
+      await supabase.from('bid').delete().eq('id', newBid.id);
+      throw ApiError.internal('Failed to complete bid placement, please try again');
     }
 
     // 6. Emit via WebSocket
@@ -67,7 +67,7 @@ const bidService = {
       .from('bid')
       .select('*, user:users(id, username)')
       .eq('auction_id', auctionId)
-      .order('bid_ammount', { ascending: false });
+      .order('bid_amount', { ascending: false });
 
     if (error) throw ApiError.internal('Failed to fetch bids');
     return data;

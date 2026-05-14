@@ -7,7 +7,7 @@ const userService = {
 
     const { data, error, count } = await supabase
       .from('users')
-      .select('id, username, email, role, created_at', { count: 'exact' })
+      .select('id, username, email, role, deposit_balance, created_at', { count: 'exact' })
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
@@ -27,7 +27,7 @@ const userService = {
   async getUserById(id) {
     const { data, error } = await supabase
       .from('users')
-      .select('id, username, email, role, created_at')
+      .select('id, username, email, role, deposit_balance, created_at')
       .eq('id', id)
       .single();
 

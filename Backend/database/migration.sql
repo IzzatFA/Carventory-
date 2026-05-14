@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'user',
+  deposit_balance DECIMAL(15,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS cars (
   starting_price DECIMAL(15,2) NOT NULL,
   status VARCHAR(50) NOT NULL DEFAULT 'pending',
   description TEXT,
+  image_url VARCHAR(2048),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -38,7 +40,7 @@ CREATE TABLE IF NOT EXISTS auction (
 
 CREATE TABLE IF NOT EXISTS bid (
   id SERIAL PRIMARY KEY,
-  bid_ammount DECIMAL(15,2) NOT NULL,
+  bid_amount DECIMAL(15,2) NOT NULL,
   bid_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   auction_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL
@@ -109,10 +111,25 @@ CREATE INDEX IF NOT EXISTS idx_transaction_auction_id ON transaction(auction_id)
 CREATE INDEX IF NOT EXISTS idx_admin_log_admin_id ON admin_log(admin_id);
 
 
--- 4. Initial Setup / Seed (Optional)
+-- 4. RPC Functions
+
+-- Digunakan oleh sistem top up untuk atomic increment deposit_balance.
+-- Jalankan query ini di Supabase SQL Editor jika belum ada.
+CREATE OR REPLACE FUNCTION increment_user_balance(uid INTEGER, add_amount DECIMAL)
+RETURNS DECIMAL
+LANGUAGE sql
+AS $$
+  UPDATE users
+  SET deposit_balance = COALESCE(deposit_balance, 0) + add_amount
+  WHERE id = uid
+  RETURNING deposit_balance;
+$$;
+
+
+-- 5. Initial Setup / Seed (Optional)
 -- Insert a default admin account
 -- The password is 'admin123' (hashed with bcrypt, 12 rounds)
 -- Note: It's recommended to create users via the API to ensure proper hashing
--- INSERT INTO users (username, email, password, role) 
+-- INSERT INTO users (username, email, password, role)
 -- VALUES ('Super Admin', 'admin@carventory.id', '$2a$12$R9h/cIPz0gi.URNNX3rub2A9WEsyTUK1D8.oXnO1nE0P0m0wZ4qVq', 'admin')
 -- ON CONFLICT (email) DO NOTHING;

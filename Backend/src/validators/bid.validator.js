@@ -3,7 +3,7 @@ const Joi = require('joi');
 const placeBid = {
   body: Joi.object().keys({
     auction_id: Joi.number().integer().required(),
-    bid_ammount: Joi.number().positive().required()
+    bid_amount: Joi.number().positive().required()
   })
 };
 
@@ -13,7 +13,14 @@ const getBidsByAuction = {
   })
 };
 
+const getByUser = {
+  params: Joi.object().keys({
+    userId: Joi.number().integer().required()
+  })
+};
+
 module.exports = {
   placeBid,
-  getBidsByAuction
+  getBidsByAuction,
+  getByUser
 };
