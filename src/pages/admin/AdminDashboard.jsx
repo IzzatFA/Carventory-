@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Car, Users, Gavel, Plus, Edit, Trash2, ShieldCheck, ShieldOff, Ban } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -7,13 +7,22 @@ import { formatRupiah, categoryLabel } from '../../lib/utils';
 import api from '../../lib/api';
 
 export default function AdminDashboard() {
-  const { currentUser, users, updateUser } = useAuth();
+  const { currentUser } = useAuth();
   const { cars, auctions, setCars } = useAuction();
   const navigate = useNavigate();
   const [tab, setTab] = useState('overview');
   const [showAddCar, setShowAddCar] = useState(false);
-  const [newCar, setNewCar] = useState({ brand:'', model:'', category:'penumpang', chassis_number:'', engine_number:'', starting_price:'', image_url:'', description:'' });
+  const [newCar, setNewCar] = useState({ brand:'', model:'', year:'', category:'penumpang', chassis_number:'', engine_number:'', starting_price:'', image_url:'', description:'' });
+  const [users, setUsers] = useState([]);
   const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'admin') return;
+
+    api.get('/users')
+      .then((res) => setUsers(res.data.data || []))
+      .catch((err) => console.error('Failed to fetch users', err));
+  }, [currentUser]);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return <div className="page"><div className="empty-state"><div className="empty-state-icon">🔒</div><h3>Akses Admin Diperlukan</h3><button className="btn btn-primary" onClick={()=>navigate('/')}>Kembali</button></div></div>;
@@ -27,12 +36,13 @@ export default function AdminDashboard() {
     try {
       const res = await api.post('/cars', {
         ...newCar,
+        year: parseInt(newCar.year),
         starting_price: parseInt(newCar.starting_price)
       });
       if (res.data?.data) {
         setCars(prev => [...prev, res.data.data]);
         setShowAddCar(false);
-        setNewCar({ brand:'', model:'', category:'penumpang', chassis_number:'', engine_number:'', starting_price:'', image_url:'', description:'' });
+        setNewCar({ brand:'', model:'', year:'', category:'penumpang', chassis_number:'', engine_number:'', starting_price:'', image_url:'', description:'' });
         setMsg('Kendaraan berhasil ditambahkan!');
         setTimeout(() => setMsg(''), 3000);
       }
@@ -52,8 +62,12 @@ export default function AdminDashboard() {
     }
   };
 
-  const toggleVerify = (user) => { updateUser({ ...user, is_verified: !user.is_verified }); };
-  const toggleSuspend = (user) => { updateUser({ ...user, is_suspended: !user.is_suspended }); };
+  const toggleVerify = (user) => {
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_verified: !u.is_verified } : u));
+  };
+  const toggleSuspend = (user) => {
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_suspended: !u.is_suspended } : u));
+  };
 
   return (
     <div className="page">
@@ -134,7 +148,7 @@ export default function AdminDashboard() {
                 <div className="modal-header"><span className="modal-title">Tambah Kendaraan</span><button onClick={()=>setShowAddCar(false)} style={{ background:'none', border:'none', color:'var(--text3)', cursor:'pointer', fontSize:20 }}>×</button></div>
                 <form onSubmit={handleAddCar}>
                   <div className="modal-body" style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    {[['brand','Brand Kendaraan','text',true], ['model','Model Kendaraan','text',true],['chassis_number','No. Rangka','text',true],['engine_number','No. Mesin','text',true],['starting_price','Harga Awal (Rp)','number',true],['image_url','URL Gambar','url',false],['description','Deskripsi','text',false]].map(([k,label,type,req]) => (
+                    {[['brand','Brand Kendaraan','text',true], ['model','Model Kendaraan','text',true],['year','Tahun','number',true],['chassis_number','No. Rangka','text',true],['engine_number','No. Mesin','text',true],['starting_price','Harga Awal (Rp)','number',true],['image_url','URL Gambar','url',false],['description','Deskripsi','text',false]].map(([k,label,type,req]) => (
                       <div key={k}>
                         <label className="input-label">{label}</label>
                         {k==='description'
