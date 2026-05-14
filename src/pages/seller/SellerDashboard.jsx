@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, CheckCircle, Clock3, Edit, LockKeyhole, Plus, Save, Trash2, X } from 'lucide-react';
+import { Car, CheckCircle, Clock3, Edit, ImagePlus, LockKeyhole, Plus, Save, Trash2, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
 import { formatRupiah } from '../../lib/utils';
@@ -12,9 +12,19 @@ const emptyForm = {
   brand: '',
   model: '',
   year: '',
+  category: 'penumpang',
+  chassis_number: '',
+  engine_number: '',
   starting_price: '',
+  image_url: '',
   description: '',
 };
+
+const categories = [
+  { value: 'penumpang', label: 'Penumpang' },
+  { value: 'mewah', label: 'Mewah' },
+  { value: 'klasik', label: 'Klasik' },
+];
 
 const statusCopy = {
   pending: { label: 'Menunggu', className: 'badge-warning', icon: Clock3 },
@@ -27,6 +37,7 @@ export default function SellerDashboard() {
   const { cars, refreshData } = useAuction();
   const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
+  const [imageFile, setImageFile] = useState(null);
   const [editingCar, setEditingCar] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -68,6 +79,7 @@ export default function SellerDashboard() {
 
   const resetForm = () => {
     setForm(emptyForm);
+    setImageFile(null);
     setEditingCar(null);
     setError('');
   };
@@ -84,9 +96,14 @@ export default function SellerDashboard() {
       brand: car.brand || '',
       model: car.model || '',
       year: car.year || '',
+      category: car.category || 'penumpang',
+      chassis_number: car.chassis_number || '',
+      engine_number: car.engine_number || '',
       starting_price: car.starting_price || '',
+      image_url: car.image_url || '',
       description: car.description || '',
     });
+    setImageFile(null);
     setError('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -96,21 +113,36 @@ export default function SellerDashboard() {
     setSaving(true);
     setError('');
 
-    const payload = {
-      car_id: form.car_id || undefined,
+    const payload = new FormData();
+    Object.entries({
+      car_id: form.car_id,
       brand: form.brand.trim(),
       model: form.model.trim(),
-      year: Number(form.year),
-      starting_price: Number(form.starting_price),
-      description: form.description.trim() || undefined,
-    };
+      year: form.year,
+      category: form.category,
+      chassis_number: form.chassis_number,
+      engine_number: form.engine_number,
+      starting_price: form.starting_price,
+      image_url: form.image_url,
+      description: form.description.trim(),
+    }).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        payload.append(key, value);
+      }
+    });
+
+    if (imageFile) {
+      payload.append('image', imageFile);
+    }
+
+    const config = { headers: { 'Content-Type': 'multipart/form-data' } };
 
     try {
       if (editingCar) {
-        await api.put(`/cars/${editingCar.id}`, payload);
+        await api.put(`/cars/${editingCar.id}`, payload, config);
         showMessage('Kendaraan berhasil diperbarui.');
       } else {
-        await api.post('/cars', payload);
+        await api.post('/cars', payload, config);
         showMessage('Kendaraan berhasil ditambahkan. Status awal: menunggu.');
       }
 
@@ -184,38 +216,75 @@ export default function SellerDashboard() {
           {error && <div className="alert alert-error">{error}</div>}
 
           <form className="seller-form" onSubmit={handleSubmit}>
-            <div className="seller-form-grid">
+            <div className="seller-form-fields">
               <label>
-                <span className="input-label">Kode Mobil</span>
-                <input className="input" value={form.car_id} onChange={setField('car_id')} placeholder="CV-001" />
+                <span className="input-label">Brand Kendaraan</span>
+                <input className="input" value={form.brand} onChange={setField('brand')} required />
               </label>
+
               <label>
-                <span className="input-label">Brand</span>
-                <input className="input" value={form.brand} onChange={setField('brand')} placeholder="Toyota" required />
+                <span className="input-label">Model Kendaraan</span>
+                <input className="input" value={form.model} onChange={setField('model')} required />
               </label>
-              <label>
-                <span className="input-label">Model</span>
-                <input className="input" value={form.model} onChange={setField('model')} placeholder="Supra" required />
-              </label>
+
               <label>
                 <span className="input-label">Tahun</span>
                 <input className="input" type="number" min="1900" value={form.year} onChange={setField('year')} required />
               </label>
+
               <label>
-                <span className="input-label">Harga Awal</span>
+                <span className="input-label">No. Rangka</span>
+                <input className="input" value={form.chassis_number} onChange={setField('chassis_number')} />
+              </label>
+
+              <label>
+                <span className="input-label">No. Mesin</span>
+                <input className="input" value={form.engine_number} onChange={setField('engine_number')} />
+              </label>
+
+              <label>
+                <span className="input-label">Harga Awal (Rp)</span>
                 <input className="input" type="number" min="1" value={form.starting_price} onChange={setField('starting_price')} required />
               </label>
-            </div>
 
-            <label>
-              <span className="input-label">Deskripsi</span>
-              <textarea
-                className="input seller-textarea"
-                value={form.description}
-                onChange={setField('description')}
-                placeholder="Kondisi, catatan servis, kelengkapan dokumen..."
-              />
-            </label>
+              <label>
+                <span className="input-label">URL Gambar</span>
+                <input className="input" type="url" value={form.image_url} onChange={setField('image_url')} />
+              </label>
+
+              <label>
+                <span className="input-label">Upload Gambar</span>
+                <span className="seller-file-input">
+                  <ImagePlus size={18} />
+                  <span>{imageFile ? imageFile.name : 'Pilih gambar untuk bucket car-images'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+                  />
+                </span>
+              </label>
+
+              <label>
+                <span className="input-label">Deskripsi</span>
+                <textarea
+                  className="input seller-textarea"
+                  value={form.description}
+                  onChange={setField('description')}
+                />
+              </label>
+
+              <label>
+                <span className="input-label">Kategori</span>
+                <select className="input" value={form.category} onChange={setField('category')}>
+                  {categories.map((category) => (
+                    <option key={category.value} value={category.value}>
+                      {category.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
             <button className="btn btn-primary" type="submit" disabled={saving}>
               {editingCar ? <Save size={16} /> : <Plus size={16} />}

@@ -26,6 +26,7 @@ router.put(
   '/:id', 
   auth, 
   authorize('seller', 'admin'), 
+  upload.single('image'),
   validate(carValidation.update), 
   carController.updateCar
 );

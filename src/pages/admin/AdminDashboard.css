@@ -1,0 +1,159 @@
+.admin-page {
+  padding-bottom: 56px;
+}
+
+.admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+
+.admin-tab {
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text3);
+  cursor: pointer;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  transition: all .2s;
+}
+
+.admin-tab.active {
+  color: var(--orange);
+  border-bottom-color: var(--orange);
+}
+
+.admin-tab:hover:not(.active) {
+  color: var(--text);
+}
+
+.admin-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.admin-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.admin-panel h2 {
+  font-size: 17px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.admin-list-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-list-item:last-child,
+.admin-status-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-car-thumb,
+.admin-table-car img {
+  width: 44px;
+  height: 34px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.admin-list-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-list-body strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-list-body span,
+.admin-muted {
+  color: var(--text3);
+  font-size: 12px;
+}
+
+.admin-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-status-row span {
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.admin-section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.admin-table-car {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-table-car span,
+.admin-user-name {
+  font-weight: 700;
+}
+
+.admin-price {
+  color: var(--orange);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-mono {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.admin-badge-row,
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .admin-header {
+    flex-direction: column;
+  }
+
+  .admin-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}

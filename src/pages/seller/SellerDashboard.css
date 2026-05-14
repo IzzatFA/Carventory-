@@ -16,7 +16,7 @@
 
 .seller-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(340px, 480px) minmax(0, 1fr);
   gap: 22px;
   align-items: start;
 }
@@ -47,19 +47,43 @@
   gap: 16px;
 }
 
-.seller-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.seller-form-fields {
+  display: flex;
+  flex-direction: column;
   gap: 14px;
 }
 
-.seller-form-grid label:first-child {
-  grid-column: 1 / -1;
+.seller-textarea {
+  min-height: 116px;
+  resize: vertical;
 }
 
-.seller-textarea {
-  min-height: 104px;
-  resize: vertical;
+.seller-file-input {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border: 1.5px dashed rgba(55, 228, 221, 0.34);
+  border-radius: 10px;
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.seller-file-input svg {
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+.seller-file-input input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .seller-table-wrap {
@@ -106,7 +130,4 @@
     flex-direction: column;
   }
 
-  .seller-form-grid {
-    grid-template-columns: 1fr;
-  }
 }
