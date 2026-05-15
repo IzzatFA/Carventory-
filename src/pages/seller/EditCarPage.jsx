@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, ImagePlus, Save, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ImagePlus, RotateCcw, Save, ShieldCheck, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
 import { categoryLabel, formatRupiah } from '../../lib/utils';
@@ -43,6 +43,7 @@ export default function EditCarPage() {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [saving, setSaving] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const car = cars.find((item) => String(item.id) === id);
@@ -119,6 +120,14 @@ export default function EditCarPage() {
 
   const carName = car.model ? `${car.brand} ${car.model}` : car.name;
   const isVerified = car.is_verified === true;
+  const isRejected = car.status === 'rejected';
+  const statusTone = isRejected ? 'rejected' : isVerified ? 'active' : 'upcoming';
+  const statusLabel = isRejected ? 'Ditolak' : isVerified ? 'Sudah Diverifikasi' : 'Belum Diverifikasi';
+  const statusCopy = isRejected
+    ? 'Listing ini ditolak admin. Perbaiki data kendaraan, lalu ajukan kembali untuk masuk antrean review.'
+    : isVerified
+      ? 'Kendaraan ini sudah diverifikasi oleh admin dan dapat tampil sebagai listing aktif.'
+      : 'Kendaraan masih menunggu review admin. Perubahan data dapat membuat admin perlu mengecek ulang.';
 
   const setField = (key) => (event) => {
     setForm((current) => ({ ...current, [key]: event.target.value }));
@@ -177,6 +186,20 @@ export default function EditCarPage() {
     }
   };
 
+  const handleResubmit = async () => {
+    setResubmitting(true);
+    setError('');
+
+    try {
+      await api.put(`/cars/${car.id}`, { status: 'pending' });
+      await refreshData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengajukan ulang kendaraan.');
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
   return (
     <div className="car-detail-page edit-car-page">
       <div className="car-detail-topbar">
@@ -216,26 +239,36 @@ export default function EditCarPage() {
           </div>
 
           <aside className="auction-panel edit-status-panel" aria-label="Status verifikasi">
-            <div className="auction-status-line" data-status={isVerified ? 'active' : 'upcoming'}>
+            <div className="auction-status-line" data-status={statusTone}>
               <span className="auction-status-dot" />
               <span>Status Kendaraan</span>
             </div>
 
             <div className="auction-meta-card">
               <span>Verifikasi Admin</span>
-              <strong>{isVerified ? 'Sudah Diverifikasi' : 'Belum Diverifikasi'}</strong>
+              <strong>{statusLabel}</strong>
             </div>
 
             <div className="edit-status-copy">
-              {isVerified
-                ? 'Kendaraan ini sudah diverifikasi oleh admin dan dapat tampil sebagai listing aktif.'
-                : 'Kendaraan masih menunggu review admin. Perubahan data dapat membuat admin perlu mengecek ulang.'}
+              {statusCopy}
             </div>
 
-            <div className={`edit-status-badge ${isVerified ? 'verified' : 'pending'}`}>
-              <ShieldCheck size={18} />
-              {isVerified ? 'Terverifikasi' : 'Menunggu Verifikasi'}
+            <div className={`edit-status-badge ${isRejected ? 'rejected' : isVerified ? 'verified' : 'pending'}`}>
+              {isRejected ? <XCircle size={18} /> : <ShieldCheck size={18} />}
+              {isRejected ? 'Ditolak Admin' : isVerified ? 'Terverifikasi' : 'Menunggu Verifikasi'}
             </div>
+
+            {isRejected && (
+              <button
+                className="btn btn-primary edit-resubmit-button"
+                type="button"
+                onClick={handleResubmit}
+                disabled={resubmitting || saving}
+              >
+                <RotateCcw size={16} />
+                {resubmitting ? 'Mengajukan...' : 'Ajukan Kembali'}
+              </button>
+            )}
           </aside>
         </div>
       </section>

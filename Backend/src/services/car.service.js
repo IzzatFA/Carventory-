@@ -52,24 +52,38 @@ const carService = {
   },
 
   async updateCar(id, carData, userId, userRole) {
+    let existingCar = null;
+
     // Check ownership if not admin
     if (userRole !== 'admin') {
-      const { data: car } = await supabase.from('cars').select('seller_id').eq('id', id).single();
-      if (!car) throw ApiError.notFound('Car not found');
-      if (car.seller_id !== userId) throw ApiError.forbidden('You do not own this car');
+      const { data: car } = await supabase.from('cars').select('seller_id, status').eq('id', id).single();
+      existingCar = car;
+      if (!existingCar) throw ApiError.notFound('Car not found');
+      if (existingCar.seller_id !== userId) throw ApiError.forbidden('You do not own this car');
+    }
+
+    const updateData = { ...carData };
+    if (userRole !== 'admin') {
+      delete updateData.is_verified;
+
+      const isResubmittingRejectedCar =
+        existingCar?.status === 'rejected' && updateData.status === 'pending';
+      if (!isResubmittingRejectedCar) {
+        delete updateData.status;
+      }
     }
 
     const { data, error } = await supabase
       .from('cars')
-      .update(carData)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) throw ApiError.internal('Failed to update car');
+    if (error) throw ApiError.internal('Failed to update car: ' + error.message);
     
     if (userRole === 'admin') {
-      await adminLogService.logAction(userId, 'UPDATE_CAR', id, 'car', JSON.stringify(carData));
+      await adminLogService.logAction(userId, 'UPDATE_CAR', id, 'car', JSON.stringify(updateData));
     }
 
     return data;
@@ -92,14 +106,28 @@ const carService = {
   },
   
   async updateStatus(id, status, adminId) {
+    const updateData = {
+      status,
+      ...(status === 'active' && { is_verified: true }),
+      ...(status === 'pending' || status === 'rejected' ? { is_verified: false } : {})
+    };
+
     const { data, error } = await supabase
       .from('cars')
-      .update({ status })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) throw ApiError.internal('Failed to update car status');
+    if (error) {
+      const message = error.message || '';
+      if (message.includes('chk_cars_status') || message.includes('check constraint')) {
+        throw ApiError.internal(
+          "Database belum menerima status 'rejected'. Jalankan migration.sql terbaru di Supabase, lalu coba lagi."
+        );
+      }
+      throw ApiError.internal(`Failed to update car status: ${message}`);
+    }
     
     await adminLogService.logAction(adminId, 'UPDATE_CAR_STATUS', id, 'car', `Status changed to ${status}`);
 

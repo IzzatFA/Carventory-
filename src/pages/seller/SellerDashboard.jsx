@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, CheckCircle, Clock3, Edit, LockKeyhole, Plus, Trash2 } from 'lucide-react';
+import { Car, CheckCircle, Clock3, Edit, LockKeyhole, Plus, Trash2, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
 import { formatRupiah } from '../../lib/utils';
@@ -13,6 +13,7 @@ const statusCopy = {
   pending: { label: 'Menunggu', className: 'badge-warning', icon: Clock3 },
   active: { label: 'Aktif', className: 'badge-success', icon: CheckCircle },
   sold: { label: 'Terjual', className: 'badge-gray', icon: CheckCircle },
+  rejected: { label: 'Ditolak', className: 'badge-danger', icon: XCircle },
 };
 
 export default function SellerDashboard() {

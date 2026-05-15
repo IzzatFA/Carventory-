@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, CheckCircle, Info, MapPin, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle, Info, MapPin, ShieldCheck, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
 import { categoryLabel, formatRupiah } from '../../lib/utils';
@@ -12,7 +12,7 @@ export default function ReviewCarPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { cars, refreshData } = useAuction();
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState('');
   const [error, setError] = useState('');
 
   const car = cars.find((item) => String(item.id) === id);
@@ -48,23 +48,33 @@ export default function ReviewCarPage() {
   const carName = car.model ? `${car.brand} ${car.model}` : car.name;
   const initialPrice = car.starting_price || car.initial_price;
 
-  const handleVerify = async () => {
-    setSaving(true);
+  const handleStatusChange = async (nextStatus) => {
+    const isRejecting = nextStatus === 'rejected';
+    if (isRejecting && !window.confirm(`Tolak listing ${carName}?`)) return;
+
+    setSavingAction(nextStatus);
     setError('');
 
     try {
-      await api.put(`/cars/${car.id}`, {
-        is_verified: true,
-        status: 'active',
-      });
+      await api.patch(`/cars/${car.id}/status`, { status: nextStatus });
       await refreshData();
       navigate('/admin');
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal memverifikasi kendaraan.');
+      setError(
+        err.response?.data?.message ||
+        (isRejecting ? 'Gagal menolak kendaraan.' : 'Gagal memverifikasi kendaraan.')
+      );
     } finally {
-      setSaving(false);
+      setSavingAction('');
     }
   };
+
+  const statusLabel =
+    car.status === 'rejected'
+      ? 'Ditolak'
+      : car.is_verified === true
+        ? 'Terverifikasi'
+        : 'Belum Diverifikasi';
 
   return (
     <div className="car-detail-page review-car-page">
@@ -111,7 +121,7 @@ export default function ReviewCarPage() {
 
             <div className="auction-meta-card">
               <span>Status Saat Ini</span>
-              <strong>{car.is_verified === true ? 'Terverifikasi' : 'Belum Diverifikasi'}</strong>
+              <strong>{statusLabel}</strong>
             </div>
 
             <div className="review-action-copy">
@@ -124,10 +134,26 @@ export default function ReviewCarPage() {
               </div>
             )}
 
-            <button className="btn btn-primary btn-lg review-verify-button" type="button" onClick={handleVerify} disabled={saving}>
-              <CheckCircle size={18} />
-              {saving ? 'Memverifikasi...' : 'Verifikasi Kendaraan'}
-            </button>
+            <div className="review-actions">
+              <button
+                className="btn btn-primary btn-lg review-verify-button"
+                type="button"
+                onClick={() => handleStatusChange('active')}
+                disabled={Boolean(savingAction)}
+              >
+                <CheckCircle size={18} />
+                {savingAction === 'active' ? 'Memverifikasi...' : 'Verifikasi Kendaraan'}
+              </button>
+              <button
+                className="btn btn-danger btn-lg review-reject-button"
+                type="button"
+                onClick={() => handleStatusChange('rejected')}
+                disabled={Boolean(savingAction)}
+              >
+                <XCircle size={18} />
+                {savingAction === 'rejected' ? 'Menolak...' : 'Tolak Listing'}
+              </button>
+            </div>
           </aside>
         </div>
       </section>
@@ -171,7 +197,7 @@ export default function ReviewCarPage() {
                   ['Kategori', categoryLabel[car.category] || car.category || 'Penumpang'],
                   ['Lokasi', car.location || 'Jakarta'],
                   ['Harga Awal', formatRupiah(initialPrice)],
-                  ['Status Verifikasi', car.is_verified === true ? 'Terverifikasi' : 'Belum Verifikasi'],
+                  ['Status Verifikasi', statusLabel],
                 ].map(([key, value]) => (
                   <div className="spec-row" key={key}>
                     <div className="spec-key">{key}</div>

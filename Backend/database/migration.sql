@@ -76,7 +76,7 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS chk_users_role;
 ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('user', 'seller', 'admin'));
 
 ALTER TABLE cars DROP CONSTRAINT IF EXISTS chk_cars_status;
-ALTER TABLE cars ADD CONSTRAINT chk_cars_status CHECK (status IN ('pending', 'active', 'sold'));
+ALTER TABLE cars ADD CONSTRAINT chk_cars_status CHECK (status IN ('pending', 'active', 'sold', 'rejected'));
 
 ALTER TABLE transaction DROP CONSTRAINT IF EXISTS chk_payment_status;
 ALTER TABLE transaction ADD CONSTRAINT chk_payment_status CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded'));

@@ -90,7 +90,7 @@ export default function AdminDashboard() {
   const activeAuctions = auctions.filter((auction) => auction.status === 'active').length;
   const verifiedUsers = users.filter((user) => user.is_verified !== false && user.role !== 'admin').length;
   const regularUsers = users.filter((user) => user.role !== 'admin');
-  const pendingCars = cars.filter((car) => car.is_verified === false || car.status === 'pending');
+  const pendingCars = cars.filter((car) => car.status === 'pending' || (car.is_verified === false && car.status !== 'rejected'));
   const latestCars = cars.slice().reverse();
   const latestCarsPage = getPagedRows(latestCars, overviewCarsPage);
   const pendingCarsPage = getPagedRows(pendingCars, pendingPage);
@@ -289,9 +289,13 @@ export default function AdminDashboard() {
                     <td className="admin-price">{formatRupiah(car.starting_price || car.initial_price)}</td>
                     <td className="admin-mono">{car.chassis_number || '-'}</td>
                     <td>
-                      {car.is_verified !== false
-                        ? <span className="badge badge-success">Terverifikasi</span>
-                        : <span className="badge badge-warning">Belum</span>}
+                      {car.status === 'rejected' ? (
+                        <span className="badge badge-danger">Ditolak</span>
+                      ) : car.is_verified !== false ? (
+                        <span className="badge badge-success">Terverifikasi</span>
+                      ) : (
+                        <span className="badge badge-warning">Belum</span>
+                      )}
                     </td>
                   </tr>
                 ))}

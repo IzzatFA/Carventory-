@@ -17,7 +17,7 @@ const create = {
     location: Joi.string().allow('', null).optional(),
     is_verified: Joi.boolean().optional(),
     description: Joi.string().max(2000).optional(),
-    status: Joi.string().valid('pending', 'active', 'sold').default('pending')
+    status: Joi.string().valid('pending', 'active', 'sold', 'rejected').default('pending')
   })
 };
 
@@ -39,7 +39,7 @@ const update = {
     location: Joi.string().allow('', null).optional(),
     is_verified: Joi.boolean().optional(),
     description: Joi.string().max(2000).optional(),
-    status: Joi.string().valid('pending', 'active', 'sold').optional()
+    status: Joi.string().valid('pending', 'active', 'sold', 'rejected').optional()
   }).min(1) // Ensure at least one field is provided for update
 };
 
@@ -48,7 +48,7 @@ const updateStatus = {
     id: Joi.number().integer().required()
   }),
   body: Joi.object().keys({
-    status: Joi.string().valid('pending', 'active', 'sold').required()
+    status: Joi.string().valid('pending', 'active', 'sold', 'rejected').required()
   })
 };
 
