@@ -76,11 +76,10 @@ const bidService = {
   async getBidsByUser(userId, page = 1, limit = 20) {
     const offset = (page - 1) * limit;
 
-    // Gunakan * pada auction agar tidak crash jika kolom 'status' belum ada
     const { data, error, count } = await supabase
       .from('bid')
       .select(
-        '*, auction:auction(id, winner_id, car_id, current_highest_bid, start_time, end_time, car:cars(id, brand, model, year))',
+        '*, auction:auction(id, winner_id, car_id, current_highest_bid, start_time, end_time, status, car:cars(id, brand, model, year, image_url))',
         { count: 'exact' }
       )
       .eq('user_id', userId)

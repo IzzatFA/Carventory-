@@ -54,6 +54,7 @@ const buyNowService = {
       .insert([{
         user_id: buyerId,
         auction_id: null,
+        car_id: carId,
         amount: price,
         payment_status: 'paid',
         type: 'buy_now',

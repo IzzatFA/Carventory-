@@ -33,7 +33,20 @@ const validate = (schema) => {
       return next(ApiError.badRequest('Validation failed', errors));
     }
 
-    Object.assign(req, value);
+    if (value.params) {
+      Object.keys(req.params).forEach((key) => delete req.params[key]);
+      Object.assign(req.params, value.params);
+    }
+
+    if (value.query) {
+      Object.keys(req.query).forEach((key) => delete req.query[key]);
+      Object.assign(req.query, value.query);
+    }
+
+    if (value.body) {
+      req.body = value.body;
+    }
+
     return next();
   };
 };
