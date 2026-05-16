@@ -2,16 +2,76 @@ const supabase = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const adminLogService = require('./adminLog.service');
 
+const getAuctionStatus = (startTime, endTime) => {
+  const now = Date.now();
+  const start = new Date(startTime).getTime();
+  const end = new Date(endTime).getTime();
+
+  if (start > now) return 'upcoming';
+  if (end <= now) return 'ended';
+  return 'active';
+};
+
+const saveAuctionSchedule = async (carId, startTime, endTime, startingPrice) => {
+  if (!startTime || !endTime) return null;
+
+  const { data: existingAuction, error: lookupError } = await supabase
+    .from('auction')
+    .select('id')
+    .eq('car_id', carId)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw ApiError.internal('Failed to check auction schedule: ' + lookupError.message);
+  }
+
+  const scheduleData = {
+    start_time: startTime,
+    end_time: endTime,
+    status: getAuctionStatus(startTime, endTime)
+  };
+
+  const query = existingAuction
+    ? supabase
+      .from('auction')
+      .update(scheduleData)
+      .eq('id', existingAuction.id)
+    : supabase
+      .from('auction')
+      .insert([{
+        car_id: carId,
+        ...scheduleData,
+        current_highest_bid: startingPrice
+      }]);
+
+  const { data, error } = await query.select().single();
+
+  if (error) throw ApiError.internal('Failed to save auction schedule: ' + error.message);
+
+  return data;
+};
+
 const carService = {
   async createCar(carData, sellerId) {
+    const { start_time, end_time, ...carPayload } = carData;
+
     const { data, error } = await supabase
       .from('cars')
-      .insert([{ ...carData, seller_id: sellerId }])
+      .insert([{ ...carPayload, seller_id: sellerId }])
       .select()
       .single();
 
     if (error) throw ApiError.internal('Failed to create car: ' + error.message);
-    return data;
+
+    if (!start_time || !end_time) return data;
+
+    try {
+      const auction = await saveAuctionSchedule(data.id, start_time, end_time, data.starting_price);
+      return { ...data, auction };
+    } catch (error) {
+      await supabase.from('cars').delete().eq('id', data.id);
+      throw error;
+    }
   },
 
   async getAllCars(filters, page = 1, limit = 10) {
@@ -52,17 +112,18 @@ const carService = {
   },
 
   async updateCar(id, carData, userId, userRole) {
+    const { start_time, end_time, ...carPayload } = carData;
     let existingCar = null;
 
     // Check ownership if not admin
     if (userRole !== 'admin') {
-      const { data: car } = await supabase.from('cars').select('seller_id, status').eq('id', id).single();
+      const { data: car } = await supabase.from('cars').select('seller_id, status, starting_price').eq('id', id).single();
       existingCar = car;
       if (!existingCar) throw ApiError.notFound('Car not found');
       if (existingCar.seller_id !== userId) throw ApiError.forbidden('You do not own this car');
     }
 
-    const updateData = { ...carData };
+    const updateData = { ...carPayload };
     if (userRole !== 'admin') {
       delete updateData.is_verified;
 
@@ -81,12 +142,19 @@ const carService = {
       .single();
 
     if (error) throw ApiError.internal('Failed to update car: ' + error.message);
+
+    const auction = await saveAuctionSchedule(
+      data.id,
+      start_time,
+      end_time,
+      data.starting_price || existingCar?.starting_price
+    );
     
     if (userRole === 'admin') {
       await adminLogService.logAction(userId, 'UPDATE_CAR', id, 'car', JSON.stringify(updateData));
     }
 
-    return data;
+    return auction ? { ...data, auction } : data;
   },
 
   async deleteCar(id, userId, userRole) {

@@ -212,6 +212,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.edit-input-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .edit-section-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -223,6 +227,28 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.edit-auction-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.edit-section-title h3 {
+  margin-bottom: 0;
+}
+
+.edit-section-title svg {
+  color: var(--orange);
+  flex-shrink: 0;
 }
 
 .edit-form-section .input {
@@ -254,6 +280,7 @@
 
 @media (max-width: 900px) {
   .edit-input-grid.three,
+  .edit-input-grid.two,
   .edit-section-pair {
     grid-template-columns: 1fr;
   }

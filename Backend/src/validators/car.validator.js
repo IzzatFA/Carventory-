@@ -17,8 +17,10 @@ const create = {
     location: Joi.string().allow('', null).optional(),
     is_verified: Joi.boolean().optional(),
     description: Joi.string().max(2000).optional(),
+    start_time: Joi.date().iso().optional(),
+    end_time: Joi.date().iso().greater(Joi.ref('start_time')).optional(),
     status: Joi.string().valid('pending', 'active', 'sold', 'rejected').default('pending')
-  })
+  }).and('start_time', 'end_time')
 };
 
 const update = {
@@ -39,8 +41,10 @@ const update = {
     location: Joi.string().allow('', null).optional(),
     is_verified: Joi.boolean().optional(),
     description: Joi.string().max(2000).optional(),
+    start_time: Joi.date().iso().optional(),
+    end_time: Joi.date().iso().greater(Joi.ref('start_time')).optional(),
     status: Joi.string().valid('pending', 'active', 'sold', 'rejected').optional()
-  }).min(1) // Ensure at least one field is provided for update
+  }).and('start_time', 'end_time').min(1) // Ensure at least one field is provided for update
 };
 
 const updateStatus = {
