@@ -66,7 +66,11 @@ export const AuthProvider = ({ children }) => {
       await refreshUser();
       return { success: true, data: res.data.data };
     } catch (err) {
-      return { success: false, error: err.response?.data?.message || 'Top up failed' };
+      const response = err.response?.data;
+      return {
+        success: false,
+        error: response?.errors?.[0]?.message || response?.message || 'Top up failed',
+      };
     }
   };
 

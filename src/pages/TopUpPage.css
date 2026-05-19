@@ -211,6 +211,13 @@
   box-shadow: 0 0 0 3px rgba(245, 130, 31, 0.18);
 }
 
+.topup-input-error {
+  margin: 8px 0 0;
+  color: #ffb4a8;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .topup-pay-button {
   width: 100%;
   min-height: 52px;
