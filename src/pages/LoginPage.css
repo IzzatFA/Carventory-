@@ -31,9 +31,9 @@
 
 .login-logo-mark {
   width: 115px;
-  height: 108px;
+  height: auto;
   margin-bottom: 10px;
-  background: #fff;
+  display: block;
 }
 
 .login-brand-name {
@@ -207,7 +207,6 @@
 
   .login-logo-mark {
     width: 92px;
-    height: 86px;
   }
 
   .login-brand-name {

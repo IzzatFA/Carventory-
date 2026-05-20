@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-import './Navbar.css';
+import './NavBar.css';
 
 const NAV_LINKS = [
   { icon: Home, label: 'Beranda', path: '/' },
@@ -48,8 +48,7 @@ export default function Navbar() {
       <div className="navbar-sidebar-inner">
         {/* Logo */}
         <button className="sidebar-logo" onClick={() => go('/')}>
-          <span className="sidebar-logo-main">CARVENTORY</span>
-          <span className="sidebar-logo-sub">(Logonya blm ada mas?)</span>
+          <img className="sidebar-logo-image" src="/Logo.svg" alt="Carventory" />
         </button>
 
         {/* User / Auth */}

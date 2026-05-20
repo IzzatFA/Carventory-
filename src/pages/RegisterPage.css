@@ -31,9 +31,9 @@
 
 .register-logo-mark {
   width: 115px;
-  height: 108px;
+  height: auto;
   margin-bottom: 14px;
-  background: #fff;
+  display: block;
 }
 
 .register-brand-name {
@@ -232,7 +232,6 @@
 
   .register-logo-mark {
     width: 92px;
-    height: 86px;
   }
 
   .register-brand-name {
