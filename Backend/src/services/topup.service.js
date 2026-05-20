@@ -6,7 +6,21 @@ const topupService = {
     const ref = `TOPUP-${Date.now()}-${userId}`;
     const now = new Date().toISOString();
 
-    // 1. Buat record transaksi terlebih dahulu
+    // 1. Increment balance DULU (atomic) — jika ini gagal, tidak ada yang dibuat
+    const { data: newBalance, error: balanceError } = await supabase
+      .rpc('increment_user_balance', { uid: userId, add_amount: parseFloat(amount) });
+
+    if (balanceError || newBalance === null || newBalance === undefined) {
+      throw ApiError.internal(
+        balanceError?.message?.includes('increment_user_balance')
+          ? 'Fungsi increment_user_balance belum dibuat. Jalankan migration.sql di Supabase SQL Editor.'
+          : 'Gagal memperbarui saldo'
+      );
+    }
+
+    const balance = parseFloat(newBalance);
+
+    // 2. Buat record transaksi setelah saldo berhasil diperbarui
     const { data: transaction, error: txError } = await supabase
       .from('transaction')
       .insert([{
@@ -22,25 +36,13 @@ const topupService = {
       .select()
       .single();
 
-    if (txError) throw ApiError.internal('Gagal membuat transaksi top up');
-
-    // 2. Atomic increment deposit_balance via RPC (menghindari race condition)
-    const { data: newBalance, error: balanceError } = await supabase
-      .rpc('increment_user_balance', { uid: userId, add_amount: parseFloat(amount) });
-
-    if (balanceError || newBalance === null || newBalance === undefined) {
-      // Rollback: hapus transaksi yang sudah dibuat
-      await supabase.from('transaction').delete().eq('id', transaction.id);
-      throw ApiError.internal(
-        balanceError?.message?.includes('increment_user_balance')
-          ? 'Fungsi increment_user_balance belum dibuat di database. Jalankan migration.sql terlebih dahulu.'
-          : 'Gagal memperbarui saldo, transaksi dibatalkan'
-      );
+    if (txError) {
+      // Rollback: kembalikan saldo karena transaksi tidak tercatat
+      await supabase.rpc('decrement_user_balance', { uid: userId, sub_amount: parseFloat(amount) });
+      throw ApiError.internal('Gagal mencatat transaksi, saldo sudah dikembalikan');
     }
 
-    const balance = parseFloat(newBalance);
-
-    // 3. Buat notifikasi konfirmasi
+    // 3. Notifikasi
     await supabase.from('notifications').insert([{
       user_id: userId,
       title: 'Top Up Berhasil',
@@ -49,10 +51,7 @@ const topupService = {
       created_at: now
     }]);
 
-    return {
-      transaction,
-      deposit_balance: balance
-    };
+    return { transaction, deposit_balance: balance };
   },
 
   async getBalance(userId) {

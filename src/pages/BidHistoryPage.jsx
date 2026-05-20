@@ -29,13 +29,23 @@ function getBidStatus(bid, userId) {
   const auction = bid.auction;
   if (!auction) return 'ongoing';
 
+  // Gunakan waktu nyata sebagai fallback saat kolom status belum ada di DB
   const isEnded =
     auction.status === 'ended' ||
     (auction.end_time && new Date(auction.end_time) < new Date());
 
-  if (isEnded && Number(auction.winner_id) === Number(userId)) return 'won';
-  if (isEnded) return 'lost';
-  return 'ongoing';
+  if (!isEnded) return 'ongoing';
+
+  // Cek winner_id yang sudah di-set oleh admin
+  if (auction.winner_id != null) {
+    return Number(auction.winner_id) === Number(userId) ? 'won' : 'lost';
+  }
+
+  // Fallback: jika winner_id belum di-set, bandingkan bid dengan highest bid
+  const bidAmt = Number(bid.bid_amount);
+  const highest = Number(auction.current_highest_bid);
+  if (bidAmt > 0 && highest > 0 && bidAmt >= highest) return 'won';
+  return 'lost';
 }
 
 function CarThumb({ car }) {
@@ -206,13 +216,8 @@ export default function BidHistoryPage() {
 
       {loading ? (
         <div className="history-loading" role="status" aria-live="polite">
-          <div className="history-loader">
-            <span className="history-loader-ring" />
-            <Loader2 size={34} className="history-loader-icon" />
-          </div>
-          <p>
-            Memuat riwayat<span className="history-loading-dots" />
-          </p>
+          <Loader2 size={40} className="spin" />
+          <p>Memuat riwayat...</p>
         </div>
       ) : error ? (
         <div className="alert alert-error history-alert">
@@ -277,14 +282,40 @@ export default function BidHistoryPage() {
                         </span>
                       </td>
                       <td>
-                        {item.auction?.status === 'active' && auctionId && (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => navigate(`/auctions/${auctionId}`)}
-                          >
-                            Lihat Lelang
-                          </button>
-                        )}
+                        {(() => {
+                          const carId = item.auction?.car_id;
+                          if (!carId) return null;
+
+                          // Tentukan apakah lelang masih berlangsung
+                          const endTime = item.auction?.end_time;
+                          const isStillActive = status === 'ongoing' || (
+                            endTime && new Date(endTime) > new Date()
+                          );
+
+                          if (isStillActive) {
+                            return (
+                              <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => navigate(`/cars/${carId}`, {
+                                  state: { fromHistory: true, kind: 'bid', won: false }
+                                })}
+                              >
+                                Lihat Lelang
+                              </button>
+                            );
+                          }
+                          // Untuk lelang selesai — kirim info apakah menang
+                          return (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => navigate(`/cars/${carId}`, {
+                                state: { fromHistory: true, kind: 'bid', won: status === 'won' }
+                              })}
+                            >
+                              {status === 'won' ? '🏆 Lihat Kendaraan Saya' : 'Lihat Detail'}
+                            </button>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
@@ -317,7 +348,23 @@ export default function BidHistoryPage() {
                     <td>
                       <span className="badge badge-success">✓ Berhasil</span>
                     </td>
-                    <td />
+                    <td>
+                      {(() => {
+                        // Cari car id dari berbagai sumber
+                        const targetCarId = car?.id || item.car_id;
+                        if (!targetCarId) return null;
+                        return (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => navigate(`/cars/${targetCarId}`, {
+                              state: { fromHistory: true, kind: 'purchase' }
+                            })}
+                          >
+                            🛒 Lihat Kendaraan Saya
+                          </button>
+                        );
+                      })()}
+                    </td>
                   </tr>
                 );
               })}

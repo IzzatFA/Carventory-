@@ -1,24 +1,60 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Gavel, Info, MapPin, ShieldCheck, ShoppingCart, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, AlertCircle, Gavel, Info, MapPin, ShieldCheck, ShoppingCart, Trophy, TrendingUp } from 'lucide-react';
 import { formatRupiah, categoryLabel } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
 import BidTimer from '../components/BidTimer';
 import './CarDetailPage.css';
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=900';
+
+// Derive auction status from timestamps (real-time, second-level accuracy)
+function deriveAuctionStatus(auction, now) {
+  if (!auction) return null;
+  if (now > new Date(auction.end_time))   return 'ended';
+  if (now < new Date(auction.start_time)) return 'upcoming';
+  return 'active';
+}
+
 export default function CarDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser, buyNow } = useAuth();
+
+  // Baca state yang dikirim dari halaman riwayat
+  const { fromHistory, kind: historyKind, won: fromWonBid } = location.state || {};
   const { cars, auctions, getAuctionBids, placeBid, refreshData } = useAuction();
+
+  // Real-time clock — updates every second to react when auction ends/starts
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const car = cars.find((c) => String(c.id) === id);
   const auction = auctions.find((a) => String(a.car_id) === id);
   const bids = auction ? getAuctionBids(auction.id) : [];
+
   const canViewPendingCar = currentUser && (
     currentUser.role === 'admin' || Number(car?.seller_id) === Number(currentUser.id)
   );
+
+  // Computed status: cek sold dulu, lalu derive dari waktu nyata
+  const auctionStatus = useMemo(() => {
+    if (car?.status === 'sold') return 'ended'; // Mobil terjual → lelang otomatis berakhir
+    return deriveAuctionStatus(auction, now);
+  }, [auction, car, now]);
+
+  // Deteksi kepemilikan: pemenang lelang atau pembeli langsung
+  const isAuctionWinner = Boolean(
+    currentUser && auction && Number(auction.winner_id) === Number(currentUser.id)
+  );
+  const isFromWonBid = Boolean(fromHistory && historyKind === 'bid' && fromWonBid);
+  const isBuyer      = Boolean(fromHistory && historyKind === 'purchase');
+  const userOwnsThisCar = isAuctionWinner || isFromWonBid || isBuyer;
 
   const [bidAmount, setBidAmount] = useState('');
   const [bidError, setBidError] = useState('');
@@ -26,8 +62,17 @@ export default function CarDetailPage() {
   const [buyNowMessage, setBuyNowMessage] = useState('');
   const [buyNowError, setBuyNowError] = useState('');
   const [buyNowLoading, setBuyNowLoading] = useState(false);
+  const [bidLoading, setBidLoading] = useState(false);
 
-  if (!car || ((car.is_verified !== true && car.status !== 'active') && !canViewPendingCar)) {
+  // Refresh auction data when the timer hits zero
+  const handleAuctionEnd = async () => {
+    await refreshData();
+    setBidAmount('');
+    setBidError('');
+    setBidSuccess('');
+  };
+
+  if (!car || ((car.is_verified !== true && car.status !== 'active') && !canViewPendingCar && !userOwnsThisCar)) {
     return (
       <div className="page">
         <div className="empty-state">
@@ -45,13 +90,15 @@ export default function CarDetailPage() {
   const initialPrice = car.starting_price || car.initial_price;
   const buyNowPrice = Number(car.buy_now_price || car.direct_buy_price || 0);
   const hasBuyNowPrice = buyNowPrice > 0;
-  const minBid = auction ? (Number(auction.current_highest_bid) || initialPrice) + 500000 : initialPrice;
-  const statusMap = {
+  const minBid = auction
+    ? (Number(auction.current_highest_bid) || Number(initialPrice)) + 500000
+    : Number(initialPrice);
+
+  const statusLabels = {
     active: 'Lelang Aktif',
     upcoming: 'Segera Dibuka',
     ended: 'Lelang Berakhir',
   };
-  const auctionStatus = auction ? statusMap[auction.status] : null;
 
   const handleBidChange = (event) => {
     setBidAmount(event.target.value.replace(/\D/g, ''));
@@ -63,15 +110,8 @@ export default function CarDetailPage() {
     setBuyNowError('');
     setBuyNowMessage('');
 
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-
-    if (!hasBuyNowPrice) {
-      setBuyNowError('Harga langsung beli belum tersedia.');
-      return;
-    }
+    if (!currentUser) { navigate('/login'); return; }
+    if (!hasBuyNowPrice) { setBuyNowError('Harga langsung beli belum tersedia.'); return; }
 
     const userBalance = Number(currentUser.deposit_balance) || 0;
     if (userBalance < buyNowPrice) {
@@ -85,10 +125,7 @@ export default function CarDetailPage() {
     const result = await buyNow(car.id);
     setBuyNowLoading(false);
 
-    if (!result.success) {
-      setBuyNowError(result.error);
-      return;
-    }
+    if (!result.success) { setBuyNowError(result.error); return; }
 
     setBuyNowMessage(`Pembelian berhasil! ${formatRupiah(buyNowPrice)} telah dikurangi dari saldo Anda.`);
     await refreshData();
@@ -99,59 +136,55 @@ export default function CarDetailPage() {
     setBidError('');
     setBidSuccess('');
 
-    if (!auction || auction.status !== 'active') return;
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-    if (currentUser.is_verified === false) {
-      setBidError('Akun Anda belum diverifikasi admin.');
-      return;
-    }
+    // Guard: hanya bisa bid saat status aktif (real-time)
+    if (auctionStatus !== 'active') return;
+    if (!currentUser) { navigate('/login'); return; }
 
     const amount = Number(bidAmount);
-    if (!amount) {
-      setBidError('Masukkan jumlah penawaran terlebih dahulu.');
-      return;
-    }
-    if (amount < minBid) {
-      setBidError(`Penawaran minimum adalah ${formatRupiah(minBid)}.`);
-      return;
-    }
+    if (amount <= 0) { setBidError('Masukkan jumlah penawaran terlebih dahulu.'); return; }
+    if (amount < minBid) { setBidError(`Penawaran minimum adalah ${formatRupiah(minBid)}.`); return; }
 
+    setBidLoading(true);
     const result = await placeBid(auction.id, amount);
-    if (!result.success) {
-      setBidError(result.error);
-      return;
-    }
+    setBidLoading(false);
+
+    if (!result.success) { setBidError(result.error); return; }
 
     setBidSuccess(`Penawaran ${formatRupiah(amount)} berhasil masuk.`);
     setBidAmount('');
   };
 
-  const renderBuyNowSection = () => (
-    <div className="buy-now-card">
-      <div>
-        <span>Harga Langsung Beli</span>
-        <strong>{hasBuyNowPrice ? formatRupiah(buyNowPrice) : 'Belum tersedia'}</strong>
-      </div>
-      {buyNowError && (
-        <div className="alert alert-error detail-bid-alert">
-          <AlertCircle size={14} /> {buyNowError}
+  // Render buy-now card — hanya tampil jika tidak ada lelang aktif/upcoming dan bukan pemilik
+  const renderBuyNowSection = () => {
+    if (userOwnsThisCar) return null; // Pemilik tidak perlu beli lagi
+    const isSold = car.status === 'sold';
+    // Sembunyikan beli langsung ketika lelang sedang aktif atau akan datang
+    if (auctionStatus === 'active' || auctionStatus === 'upcoming') return null;
+
+    return (
+      <div className="buy-now-card">
+        <div>
+          <span>Harga Langsung Beli</span>
+          <strong>{hasBuyNowPrice ? formatRupiah(buyNowPrice) : 'Belum tersedia'}</strong>
         </div>
-      )}
-      {buyNowMessage && <div className="alert alert-success detail-bid-alert">{buyNowMessage}</div>}
-      <button
-        className="btn btn-primary btn-lg detail-buy-now-button"
-        type="button"
-        onClick={handleBuyNow}
-        disabled={!hasBuyNowPrice || buyNowLoading || car.status === 'sold'}
-      >
-        <ShoppingCart size={18} />
-        {buyNowLoading ? 'Memproses...' : car.status === 'sold' ? 'Sudah Terjual' : currentUser ? 'Beli Sekarang' : 'Masuk untuk Membeli'}
-      </button>
-    </div>
-  );
+        {buyNowError && (
+          <div className="alert alert-error detail-bid-alert">
+            <AlertCircle size={14} /> {buyNowError}
+          </div>
+        )}
+        {buyNowMessage && <div className="alert alert-success detail-bid-alert">{buyNowMessage}</div>}
+        <button
+          className="btn btn-primary btn-lg detail-buy-now-button"
+          type="button"
+          onClick={handleBuyNow}
+          disabled={!hasBuyNowPrice || buyNowLoading || isSold}
+        >
+          <ShoppingCart size={18} />
+          {buyNowLoading ? 'Memproses...' : isSold ? 'Sudah Terjual' : currentUser ? 'Beli Sekarang' : 'Masuk untuk Membeli'}
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="car-detail-page">
@@ -168,27 +201,27 @@ export default function CarDetailPage() {
           <div className="detail-showcase">
             <div className="detail-img-wrap">
               <img
-                src={car.image_url}
+                src={car.image_url || FALLBACK_IMAGE}
                 alt={carName}
                 className="detail-img"
-                onError={(event) => {
-                  event.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=900';
-                }}
+                onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
               />
               <div className="detail-img-badges">
                 <span className={`badge cat-${car.category}`}>{categoryLabel[car.category] || car.category}</span>
                 {car.is_verified !== false && <span className="badge badge-success">Terverifikasi</span>}
-                {auction?.status === 'active' && (
+                {/* LIVE badge hanya tampil ketika lelang benar-benar aktif berdasarkan waktu */}
+                {auctionStatus === 'active' && (
                   <span className="badge badge-success detail-live-badge">
                     <span className="live-dot" /> LIVE
                   </span>
                 )}
+                {car.status === 'sold' && (
+                  <span className="badge badge-danger">Terjual</span>
+                )}
               </div>
               <div className="detail-img-caption">
                 <h1>{carName}</h1>
-                <p>
-                  <MapPin size={14} /> {car.location || 'Jakarta Barat'}
-                </p>
+                <p><MapPin size={14} /> {car.location || 'Jakarta Barat'}</p>
               </div>
             </div>
 
@@ -209,21 +242,46 @@ export default function CarDetailPage() {
           </div>
 
           <aside className="auction-panel" aria-label="Panel lelang">
+            {/* Banner pemenang / pembeli — tampil di atas segalanya */}
+            {userOwnsThisCar && (
+              <div className={`ownership-banner ${isAuctionWinner || isFromWonBid ? 'ownership-banner--won' : 'ownership-banner--bought'}`}>
+                <div className="ownership-banner-icon">
+                  {(isAuctionWinner || isFromWonBid)
+                    ? <Trophy size={22} />
+                    : <ShoppingCart size={22} />}
+                </div>
+                <div className="ownership-banner-body">
+                  <strong>
+                    {(isAuctionWinner || isFromWonBid)
+                      ? 'Selamat, Anda Memenangkan Lelang!'
+                      : 'Anda Telah Membeli Kendaraan Ini'}
+                  </strong>
+                  <span>
+                    {(isAuctionWinner || isFromWonBid)
+                      ? 'Kendaraan ini berhasil Anda menangkan melalui lelang.'
+                      : 'Pembelian langsung berhasil. Kendaraan kini milik Anda.'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {auction ? (
               <>
-                <div className="auction-status-line" data-status={auction.status}>
+                <div className="auction-status-line" data-status={auctionStatus}>
                   <span className="auction-status-dot" />
-                  <span>{auctionStatus}</span>
+                  <span>{statusLabels[auctionStatus] ?? 'Memuat...'}</span>
                 </div>
 
-                {auction.status === 'active' && (
+                {/* Timer hanya saat aktif */}
+                {auctionStatus === 'active' && (
                   <div className="auction-timer-block">
                     <span>Lelang selesai dalam</span>
-                    <BidTimer endTime={auction.end_time} />
+                    <BidTimer endTime={auction.end_time} onEnd={handleAuctionEnd} />
                   </div>
                 )}
 
-                {auction.status === 'upcoming' && (
+                {/* Jadwal mulai untuk upcoming */}
+                {auctionStatus === 'upcoming' && (
                   <div className="auction-meta-card">
                     <span>Jadwal Mulai</span>
                     <strong>{new Date(auction.start_time).toLocaleString('id-ID')}</strong>
@@ -236,11 +294,12 @@ export default function CarDetailPage() {
                 </div>
 
                 <div className="auction-bid-summary">
-                  <span>{auction.status === 'ended' ? 'Harga akhir' : 'Bid paling besar'}</span>
+                  <span>{auctionStatus === 'ended' ? 'Harga akhir' : 'Bid tertinggi saat ini'}</span>
                   <strong>{formatRupiah(auction.current_highest_bid)}</strong>
                 </div>
 
-                {auction.status === 'active' && (
+                {/* Form bid — hanya saat aktif berdasarkan waktu nyata */}
+                {auctionStatus === 'active' && (
                   <form className="detail-bid-form" onSubmit={handleBidSubmit}>
                     <label htmlFor="detailBidAmount">Tambah Bid</label>
                     <input
@@ -256,17 +315,23 @@ export default function CarDetailPage() {
                       </div>
                     )}
                     {bidSuccess && <div className="alert alert-success detail-bid-alert">{bidSuccess}</div>}
-                    <button className="btn btn-primary btn-lg detail-bid-button" type="submit">
-                      <Gavel size={18} /> {currentUser ? 'Masukkan' : 'Masuk untuk Menawar'}
+                    <button
+                      className="btn btn-primary btn-lg detail-bid-button"
+                      type="submit"
+                      disabled={bidLoading}
+                    >
+                      <Gavel size={18} />
+                      {bidLoading ? 'Memproses...' : currentUser ? 'Masukkan' : 'Masuk untuk Menawar'}
                     </button>
                   </form>
                 )}
 
-                {auction.status !== 'ended' && renderBuyNowSection()}
-
-                {auction.status === 'ended' && (
+                {/* Pesan selesai saat ended */}
+                {auctionStatus === 'ended' && (
                   <div className="auction-ended-note">Lelang kendaraan ini telah selesai.</div>
                 )}
+
+                {renderBuyNowSection()}
               </>
             ) : (
               <>
@@ -331,9 +396,7 @@ export default function CarDetailPage() {
                     <div className="spec-key">{key}</div>
                     <div
                       className="spec-val"
-                      data-tone={
-                        key === 'Status Verifikasi' && car.is_verified !== false ? 'success' : undefined
-                      }
+                      data-tone={key === 'Status Verifikasi' && car.is_verified !== false ? 'success' : undefined}
                     >
                       {value}
                     </div>
@@ -342,7 +405,8 @@ export default function CarDetailPage() {
               </div>
             </div>
 
-            {auction?.status === 'ended' && (
+            {/* Hasil lelang — hanya tampil saat ended */}
+            {auctionStatus === 'ended' && auction && (
               <div className="spec-section">
                 <div className="spec-section-title">
                   <TrendingUp size={16} /> Hasil Lelang
@@ -351,19 +415,17 @@ export default function CarDetailPage() {
                   {[
                     ['Harga Awal', formatRupiah(initialPrice)],
                     ['Harga Akhir', formatRupiah(auction.current_highest_bid)],
-                    [
-                      'Tanggal Selesai',
-                      new Date(auction.end_time).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      }),
-                    ],
-                    ['Status', 'Terjual'],
+                    ['Tanggal Selesai', new Date(auction.end_time).toLocaleDateString('id-ID', {
+                      day: 'numeric', month: 'long', year: 'numeric',
+                    })],
+                    ['Status', car.status === 'sold' ? 'Terjual' : 'Belum Ada Pemenang'],
                   ].map(([key, value]) => (
                     <div className="spec-row" key={key}>
                       <div className="spec-key">{key}</div>
-                      <div className="spec-val" data-tone={key === 'Harga Akhir' ? 'accent' : key === 'Status' ? 'success' : undefined}>
+                      <div className="spec-val" data-tone={
+                        key === 'Harga Akhir' ? 'accent' :
+                        key === 'Status' && car.status === 'sold' ? 'success' : undefined
+                      }>
                         {value}
                       </div>
                     </div>
@@ -382,9 +444,9 @@ export default function CarDetailPage() {
                 <div className="activity-item" key={bid.id}>
                   <div>
                     <strong>{index === 0 ? 'Penawaran tertinggi' : 'Penawaran masuk'}</strong>
-                    <span>{new Date(bid.bid_time || bid.timestamp).toLocaleTimeString('id-ID')}</span>
+                    <span>{new Date(bid.bid_time).toLocaleTimeString('id-ID')}</span>
                   </div>
-                  <b>{formatRupiah(bid.bid_amount || bid.bid_ammount)}</b>
+                  <b>{formatRupiah(bid.bid_amount)}</b>
                 </div>
               ))}
             </div>

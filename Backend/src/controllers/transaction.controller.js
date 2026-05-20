@@ -39,8 +39,11 @@ const transactionController = {
       const { id } = req.params;
       const transaction = await transactionService.getTransactionById(id);
       
-      // Ensure only admin or the winner can see this
-      if (req.user.role !== 'admin' && transaction.auction?.winner_id !== req.user.id) {
+      // Admin dapat lihat semua; user hanya bisa lihat miliknya sendiri
+      const isOwner =
+        transaction.user_id === req.user.id ||
+        transaction.auction?.winner_id === req.user.id;
+      if (req.user.role !== 'admin' && !isOwner) {
         return next(ApiError.forbidden('You do not have permission to access this transaction'));
       }
 

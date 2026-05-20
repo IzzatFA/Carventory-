@@ -58,6 +58,7 @@ export default function CatalogPage() {
 
   const filtered = useMemo(() => {
     return cars
+      .filter(car => car.status !== 'sold')
       .filter(car => car.is_verified === true || car.status === 'active')
       .filter(car => {
         const auction = auctions.find(a => String(a.car_id) === String(car.id));
