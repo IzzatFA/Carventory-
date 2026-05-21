@@ -46,6 +46,7 @@ export default function CarDetailPage() {
   const buyNowPrice = Number(car.buy_now_price || car.direct_buy_price || 0);
   const hasBuyNowPrice = buyNowPrice > 0;
   const minBid = auction ? (Number(auction.current_highest_bid) || initialPrice) + 500000 : initialPrice;
+  const isAuctionUpcoming = auction?.status === 'upcoming' || (auction?.start_time && new Date(auction.start_time) > new Date());
   const statusMap = {
     active: 'Lelang Aktif',
     upcoming: 'Segera Dibuka',
@@ -145,7 +146,7 @@ export default function CarDetailPage() {
         className="btn btn-primary btn-lg detail-buy-now-button"
         type="button"
         onClick={handleBuyNow}
-        disabled={!hasBuyNowPrice || buyNowLoading || car.status === 'sold'}
+        disabled={!hasBuyNowPrice || buyNowLoading || car.status === 'sold' || isAuctionUpcoming}
       >
         <ShoppingCart size={18} />
         {buyNowLoading ? 'Memproses...' : car.status === 'sold' ? 'Sudah Terjual' : currentUser ? 'Beli Sekarang' : 'Masuk untuk Membeli'}

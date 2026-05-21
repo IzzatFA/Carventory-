@@ -15,6 +15,8 @@ const CATS = [
 const getAuctionStatus = (auction) => {
   if (!auction) return 'upcoming';
 
+  if (auction.status === 'ended') return 'ended';
+
   const now = Date.now();
   const startTime = new Date(auction.start_time).getTime();
   const endTime = new Date(auction.end_time).getTime();
@@ -58,7 +60,7 @@ export default function CatalogPage() {
 
   const filtered = useMemo(() => {
     return cars
-      .filter(car => car.is_verified === true || car.status === 'active')
+      .filter(car => car.status !== 'sold' && (car.is_verified === true || car.status === 'active'))
       .filter(car => {
         const auction = auctions.find(a => String(a.car_id) === String(car.id));
         return getAuctionStatus(auction) !== 'ended';

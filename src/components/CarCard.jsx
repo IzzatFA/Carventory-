@@ -20,6 +20,7 @@ export default function CarCard({ data }) {
     lokasi,
     statusLelang
   } = data;
+  const isEnded = statusLelang === 'ended' || (waktuLelangSelesai && new Date(waktuLelangSelesai) <= new Date());
   const isUpcoming = statusLelang === 'upcoming';
 
   const handleCardClick = () => {
@@ -63,11 +64,15 @@ export default function CarCard({ data }) {
 
         <div className="card-price-lg">{formatRupiah(hargaAwal)}</div>
 
-        {statusLelang === 'active' && waktuLelangSelesai && (
+        {statusLelang === 'active' && waktuLelangSelesai && !isEnded && (
           <CountdownTimer endTime={waktuLelangSelesai} />
         )}
 
-        {isUpcoming && (
+        {isEnded && statusLelang !== 'upcoming' && (
+          <div className="auction-upcoming-box" style={{ background: 'var(--bg3)', color: 'var(--text3)' }}>Lelang Selesai</div>
+        )}
+
+        {isUpcoming && !isEnded && (
           <div className="auction-upcoming-box">Belum mulai</div>
         )}
 

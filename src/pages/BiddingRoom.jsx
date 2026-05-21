@@ -21,8 +21,16 @@ export default function BiddingRoom() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const [auctionEnded, setAuctionEnded] = useState(false);
+  
+  const isEndedInitial = auction ? (new Date(auction.end_time) <= new Date() || auction.status === 'ended') : false;
+  const [auctionEnded, setAuctionEnded] = useState(isEndedInitial);
   const bidsEndRef = useRef(null);
+
+  useEffect(() => {
+    if (auction) {
+      setAuctionEnded(new Date(auction.end_time) <= new Date() || auction.status === 'ended');
+    }
+  }, [auction]);
 
   useEffect(() => {
     bidsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -87,10 +95,12 @@ export default function BiddingRoom() {
           }}
         />
         <div className="bidding-header-content">
-          <div className="bidding-live-label">
-            <span className="live-dot" />
-            <span>LIVE AUCTION</span>
-          </div>
+          {!auctionEnded && auction.status === 'active' && (
+            <div className="bidding-live-label">
+              <span className="live-dot" />
+              <span>LIVE AUCTION</span>
+            </div>
+          )}
           <h1>{carName}</h1>
         </div>
         <div className="bidding-header-timer">

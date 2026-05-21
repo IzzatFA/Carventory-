@@ -30,8 +30,13 @@ function getBidStatus(bid, userId) {
   // Gunakan end_time sebagai fallback jika kolom status belum ada di DB
   const isEnded = auc.status === 'ended' ||
     (auc.end_time && new Date(auc.end_time) < new Date());
-  if (isEnded && Number(auc.winner_id) === Number(userId)) return 'won';
-  if (isEnded) return 'lost';
+  
+  if (isEnded) {
+    if (auc.winner_id && Number(auc.winner_id) === Number(userId)) return 'won';
+    // Jika lelang sudah selesai, dan belum ada winner, kita cek apakah bid ini adalah bid tertinggi.
+    if (!auc.winner_id && Number(bid.bid_amount) === Number(auc.current_highest_bid)) return 'won';
+    return 'lost';
+  }
   return 'ongoing';
 }
 
