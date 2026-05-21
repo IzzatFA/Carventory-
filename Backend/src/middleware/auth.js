@@ -21,7 +21,7 @@ const auth = async (req, res, next) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, role, deposit_balance')
+      .select('id, username, email, role')
       .eq('id', decoded.id)
       .single();
 
@@ -29,7 +29,21 @@ const auth = async (req, res, next) => {
       throw ApiError.unauthorized('User not found');
     }
 
-    req.user = user;
+    // Ambil deposit_balance terpisah — kolom ini mungkin belum ada di DB
+    // jika gagal, default 0 (tidak block auth)
+    let depositBalance = 0;
+    try {
+      const { data: balanceRow } = await supabase
+        .from('users')
+        .select('deposit_balance')
+        .eq('id', decoded.id)
+        .single();
+      depositBalance = parseFloat(balanceRow?.deposit_balance) || 0;
+    } catch {
+      // kolom belum ada — biarkan 0
+    }
+
+    req.user = { ...user, deposit_balance: depositBalance };
     next();
   } catch (error) {
     next(error);

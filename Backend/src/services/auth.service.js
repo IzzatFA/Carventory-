@@ -4,78 +4,74 @@ const env = require('../config/env');
 const ApiError = require('../utils/ApiError');
 
 const authService = {
-  /**
-   * Register a new user
-   * @param {Object} userData
-   */
   async register(userData) {
     const { username, email, password, role } = userData;
 
-    // Check if email exists
+    // maybeSingle() → tidak error saat 0 rows, berbeda dengan single() yang throw PGRST116
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
-      throw ApiError.conflict('Email already registered');
+      throw ApiError.conflict('Email sudah terdaftar');
     }
 
-    // Insert user
+    // Insert — tidak include deposit_balance di select agar tidak crash
+    // jika kolom belum exist di DB (CREATE TABLE IF NOT EXISTS melewati kolom baru)
     const { data: newUser, error } = await supabase
       .from('users')
-      .insert([
-        {
-          username,
-          email,
-          password,
-          role: role || 'user'
-        }
-      ])
-      .select('id, username, email, role, deposit_balance, created_at')
+      .insert([{ username, email, password, role: role || 'user' }])
+      .select('id, username, email, role, created_at')
       .single();
 
-    if (error) {
-      throw ApiError.internal('Failed to create user');
+    if (error || !newUser) {
+      throw ApiError.internal('Gagal membuat akun: ' + (error?.message || 'Unknown error'));
     }
 
-    return newUser;
+    // deposit_balance default 0 — kolom ini mungkin belum ada, aman di-default
+    return { ...newUser, deposit_balance: 0 };
   },
 
-  /**
-   * Login user and return JWT
-   * @param {String} email
-   * @param {String} password
-   */
   async login(email, password) {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, password, role, deposit_balance')
+      .select('id, username, email, password, role, created_at')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (error || !user) {
-      throw ApiError.unauthorized('Invalid email or password');
+      throw ApiError.unauthorized('Email atau password salah');
     }
 
-    // Verify password
     if (password !== user.password) {
-      throw ApiError.unauthorized('Invalid email or password');
+      throw ApiError.unauthorized('Email atau password salah');
     }
 
-    // Generate JWT
+    // Ambil deposit_balance terpisah agar tidak crash jika kolom belum ada
+    let depositBalance = 0;
+    try {
+      const { data: balanceData } = await supabase
+        .from('users')
+        .select('deposit_balance')
+        .eq('id', user.id)
+        .single();
+      depositBalance = parseFloat(balanceData?.deposit_balance) || 0;
+    } catch {
+      // Kolom deposit_balance belum ada — defaultkan ke 0
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN }
     );
 
-    // Remove password from returned object
     const { password: _, ...userWithoutPassword } = user;
 
     return {
-      user: userWithoutPassword,
+      user: { ...userWithoutPassword, deposit_balance: depositBalance },
       token
     };
   }

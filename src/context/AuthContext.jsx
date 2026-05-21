@@ -38,10 +38,17 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, password, role = 'user') => {
     try {
-      const res = await api.post('/auth/register', { username, email, password, role });
-      return { success: true, user: res.data.data };
+      // Buat akun
+      await api.post('/auth/register', { username, email, password, role });
+      // Auto-login setelah register berhasil agar sidebar langsung tampilkan nama user
+      const loginResult = await login(email, password);
+      if (loginResult.success) {
+        return { success: true, user: loginResult.user };
+      }
+      // Login gagal tapi register berhasil — arahkan ke halaman login
+      return { success: false, error: 'Akun berhasil dibuat, silakan login.' };
     } catch (err) {
-      return { success: false, error: err.response?.data?.message || 'Registration failed' };
+      return { success: false, error: err.response?.data?.message || 'Registrasi gagal' };
     }
   };
 
