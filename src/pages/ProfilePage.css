@@ -223,6 +223,7 @@
   border-radius: 10px;
   background: #221d33;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .profile-balance-card span {
@@ -235,10 +236,12 @@
 .profile-balance-card strong {
   display: block;
   color: #ff8421;
-  font-size: 44px;
+  font-size: clamp(20px, 4vw, 44px);
   font-weight: 900;
-  line-height: 1;
-  white-space: nowrap;
+  line-height: 1.2;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .profile-balance-card button {
@@ -397,10 +400,6 @@
     max-width: 640px;
   }
 
-  .profile-balance-card strong {
-    font-size: 44px;
-  }
-
   .profile-content {
     max-width: 760px;
   }
@@ -459,10 +458,6 @@
     gap: 14px;
   }
 
-  .profile-balance-card strong {
-    font-size: 36px;
-  }
-
   .profile-balance-card button {
     width: 100%;
     font-size: 24px;
@@ -497,6 +492,6 @@
   }
 
   .profile-balance-card strong {
-    font-size: 30px;
+    font-size: clamp(18px, 7vw, 30px);
   }
 }

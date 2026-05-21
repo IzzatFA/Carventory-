@@ -3,3 +3,35 @@
 .add-car-page .add-form-body {
   padding-top: 28px;
 }
+
+.add-auction-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.add-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.add-section-title h3 {
+  margin-bottom: 0;
+}
+
+.add-section-title svg {
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+.edit-input-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .edit-input-grid.two {
+    grid-template-columns: 1fr;
+  }
+}

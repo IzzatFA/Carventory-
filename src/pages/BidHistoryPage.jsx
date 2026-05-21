@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAuction } from '../context/AuctionContext';
@@ -13,6 +13,7 @@ import {
   TrendingDown,
   Trophy,
 } from 'lucide-react';
+import './BidHistoryPage.css';
 
 const TAB_ALL = 'all';
 const TAB_BIDS = 'bids';
@@ -25,33 +26,48 @@ const BID_STATUS = {
 };
 
 function getBidStatus(bid, userId) {
-  const auc = bid.auction;
-  if (!auc) return 'ongoing';
-  // Gunakan end_time sebagai fallback jika kolom status belum ada di DB
-  const isEnded = auc.status === 'ended' ||
-    (auc.end_time && new Date(auc.end_time) < new Date());
-  if (isEnded && Number(auc.winner_id) === Number(userId)) return 'won';
-  if (isEnded) return 'lost';
-  return 'ongoing';
+  const auction = bid.auction;
+  if (!auction) return 'ongoing';
+
+  // Gunakan waktu nyata sebagai fallback saat kolom status belum ada di DB
+  const isEnded =
+    auction.status === 'ended' ||
+    (auction.end_time && new Date(auction.end_time) < new Date());
+
+  if (!isEnded) return 'ongoing';
+
+  // Cek winner_id yang sudah di-set oleh admin
+  if (auction.winner_id != null) {
+    return Number(auction.winner_id) === Number(userId) ? 'won' : 'lost';
+  }
+
+  // Fallback: jika winner_id belum di-set, bandingkan bid dengan highest bid
+  const bidAmt = Number(bid.bid_amount);
+  const highest = Number(auction.current_highest_bid);
+  if (bidAmt > 0 && highest > 0 && bidAmt >= highest) return 'won';
+  return 'lost';
 }
 
 function CarThumb({ car }) {
-  if (!car) return <span style={{ color: 'var(--text3)', fontSize: 12 }}>—</span>;
+  if (!car) return <span className="history-car-empty">-</span>;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div className="history-car-thumb">
       {car.image_url && (
         <img
+          className="history-car-image"
           src={car.image_url}
           alt={`${car.brand} ${car.model}`}
-          style={{ width: 48, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
         />
       )}
       <div>
-        <div style={{ fontWeight: 600, fontSize: 13 }}>
-          {[car.brand, car.model].filter(Boolean).join(' ') || '—'}
+        <div className="history-car-name">
+          {[car.brand, car.model].filter(Boolean).join(' ') || '-'}
         </div>
-        {car.year && <div style={{ fontSize: 11, color: 'var(--text3)' }}>{car.year}</div>}
+        {car.year && <div className="history-car-year">{car.year}</div>}
       </div>
     </div>
   );
@@ -67,19 +83,43 @@ export default function BidHistoryPage() {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
 
   const fetchAll = useCallback(async () => {
     if (!currentUser) return;
+
     setLoading(true);
     setError('');
+    setWarning('');
+
     try {
-      const [bidsRes, purchasesRes] = await Promise.all([
+      const [bidsRes, purchasesRes] = await Promise.allSettled([
         api.get(`/bids/user/${currentUser.id}`, { params: { limit: 50 } }),
         api.get('/transactions/my', { params: { type: 'buy_now', limit: 50 } }),
       ]);
-      setBids(bidsRes.data.data || []);
-      setPurchases(purchasesRes.data.data || []);
-    } catch (err) {
+
+      const failed = [];
+
+      if (bidsRes.status === 'fulfilled') {
+        setBids(bidsRes.value.data.data || []);
+      } else {
+        setBids([]);
+        failed.push('penawaran');
+      }
+
+      if (purchasesRes.status === 'fulfilled') {
+        setPurchases(purchasesRes.value.data.data || []);
+      } else {
+        setPurchases([]);
+        failed.push('pembelian langsung');
+      }
+
+      if (failed.length === 2) {
+        setError('Gagal memuat riwayat. Silakan coba lagi.');
+      } else if (failed.length === 1) {
+        setWarning(`Riwayat ${failed[0]} belum bisa dimuat.`);
+      }
+    } catch {
       setError('Gagal memuat riwayat. Silakan coba lagi.');
     } finally {
       setLoading(false);
@@ -92,57 +132,64 @@ export default function BidHistoryPage() {
 
   if (!currentUser) {
     return (
-      <div className="page">
+      <div className="page history-page">
         <div className="empty-state">
           <div className="empty-state-icon">🔒</div>
           <h3>Login Diperlukan</h3>
-          <button className="btn btn-primary" onClick={() => navigate('/login')}>Masuk</button>
+          <button className="btn btn-primary" onClick={() => navigate('/login')}>
+            Masuk
+          </button>
         </div>
       </div>
     );
   }
 
-  // Gabungkan dan urutkan berdasarkan tanggal terbaru
   const allItems = [
-    ...bids.map((b) => ({ ...b, _kind: 'bid', _date: new Date(b.bid_time) })),
-    ...purchases.map((p) => ({ ...p, _kind: 'purchase', _date: new Date(p.created_at || p.transaction_date) })),
+    ...bids.map((bid) => ({ ...bid, _kind: 'bid', _date: new Date(bid.bid_time) })),
+    ...purchases.map((purchase) => ({
+      ...purchase,
+      _kind: 'purchase',
+      _date: new Date(purchase.created_at || purchase.transaction_date),
+    })),
   ].sort((a, b) => b._date - a._date);
 
   const displayItems =
-    tab === TAB_BIDS ? allItems.filter((i) => i._kind === 'bid') :
-    tab === TAB_PURCHASES ? allItems.filter((i) => i._kind === 'purchase') :
-    allItems;
+    tab === TAB_BIDS
+      ? allItems.filter((item) => item._kind === 'bid')
+      : tab === TAB_PURCHASES
+        ? allItems.filter((item) => item._kind === 'purchase')
+        : allItems;
 
-  const wonCount = bids.filter((b) => getBidStatus(b, currentUser.id) === 'won').length;
-  const ongoingCount = bids.filter((b) => getBidStatus(b, currentUser.id) === 'ongoing').length;
+  const wonCount = bids.filter((bid) => getBidStatus(bid, currentUser.id) === 'won').length;
+  const ongoingCount = bids.filter((bid) => getBidStatus(bid, currentUser.id) === 'ongoing').length;
 
   const stats = [
-    { label: 'Total Penawaran', value: bids.length, color: 'var(--orange)', icon: '📋' },
-    { label: 'Menang Lelang', value: wonCount, color: 'var(--success)', icon: '🏆' },
-    { label: 'Sedang Berlangsung', value: ongoingCount, color: 'var(--warning)', icon: '⏳' },
-    { label: 'Pembelian Langsung', value: purchases.length, color: 'var(--primary)', icon: '🛒' },
+    { label: 'Total Penawaran', value: bids.length, tone: 'orange', icon: '📋' },
+    { label: 'Menang Lelang', value: wonCount, tone: 'success', icon: '🏆' },
+    { label: 'Sedang Berlangsung', value: ongoingCount, tone: 'warning', icon: '⏳' },
+    { label: 'Pembelian Langsung', value: purchases.length, tone: 'info', icon: '🛒' },
   ];
 
   return (
-    <div className="page">
+    <div className="page history-page">
       <div className="page-header">
         <h1 className="page-title">Riwayat Aktivitas</h1>
         <p className="page-sub">Riwayat penawaran dan pembelian kendaraan Anda</p>
       </div>
 
-      {/* Statistik */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
-        {stats.map(({ label, value, color, icon }) => (
-          <div className="stat-card" key={label}>
-            <div style={{ fontSize: 24 }}>{icon}</div>
-            <div className="stat-value" style={{ color }}>{value}</div>
+      <div className="stats-grid history-stats">
+        {stats.map(({ label, value, tone, icon }) => (
+          <div className="stat-card history-stat-card" key={label}>
+            <div className="history-stat-icon">{icon}</div>
+            <div className={`stat-value history-stat-value history-stat-value-${tone}`}>
+              {value}
+            </div>
             <div className="stat-label">{label}</div>
           </div>
         ))}
       </div>
 
-      {/* Tab filter */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div className="history-tabs">
         {[
           { key: TAB_ALL, label: `Semua (${allItems.length})` },
           { key: TAB_BIDS, label: `Penawaran (${bids.length})` },
@@ -158,16 +205,24 @@ export default function BidHistoryPage() {
         ))}
       </div>
 
-      {/* Konten */}
+      {warning && !loading && !error && (
+        <div className="alert history-alert-warning">
+          <AlertCircle size={16} /> {warning}
+          <button className="btn btn-sm btn-ghost history-alert-action" onClick={fetchAll}>
+            Coba Lagi
+          </button>
+        </div>
+      )}
+
       {loading ? (
-        <div className="empty-state">
+        <div className="history-loading" role="status" aria-live="polite">
           <Loader2 size={40} className="spin" />
           <p>Memuat riwayat...</p>
         </div>
       ) : error ? (
-        <div className="alert alert-error" style={{ marginBottom: 16 }}>
+        <div className="alert alert-error history-alert">
           <AlertCircle size={16} /> {error}
-          <button className="btn btn-sm btn-ghost" onClick={fetchAll} style={{ marginLeft: 12 }}>
+          <button className="btn btn-sm btn-ghost history-alert-action" onClick={fetchAll}>
             Coba Lagi
           </button>
         </div>
@@ -175,13 +230,13 @@ export default function BidHistoryPage() {
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <h3>Belum Ada Riwayat</h3>
-          <p style={{ marginBottom: 20 }}>Mulai menawar atau beli kendaraan di katalog</p>
+          <p className="history-empty-copy">Mulai menawar atau beli kendaraan di katalog</p>
           <button className="btn btn-primary" onClick={() => navigate('/catalog')}>
             Lihat Katalog
           </button>
         </div>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap history-table-wrap">
           <table>
             <thead>
               <tr>
@@ -198,22 +253,25 @@ export default function BidHistoryPage() {
                 if (item._kind === 'bid') {
                   const car = item.auction?.car;
                   const status = getBidStatus(item, currentUser.id);
-                  const { label, className, icon: Icon } = BID_STATUS[status] || BID_STATUS.ongoing;
+                  const { label, className, icon: Icon } =
+                    BID_STATUS[status] || BID_STATUS.ongoing;
                   const auctionId = item.auction?.id;
 
                   return (
                     <tr key={`bid-${item.id}`}>
-                      <td><CarThumb car={car} /></td>
                       <td>
-                        <span className="badge" style={{ gap: 4 }}>
+                        <CarThumb car={car} />
+                      </td>
+                      <td>
+                        <span className="badge history-kind-badge">
                           <Gavel size={11} /> Penawaran
                         </span>
                       </td>
-                      <td style={{ fontWeight: 700, color: 'var(--orange)' }}>
+                      <td className="history-amount history-amount-bid">
                         {formatRupiah(item.bid_amount)}
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--text3)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <td className="history-time-cell">
+                        <div className="history-time">
                           <Clock size={12} />
                           {new Date(item.bid_time).toLocaleString('id-ID')}
                         </div>
@@ -224,37 +282,65 @@ export default function BidHistoryPage() {
                         </span>
                       </td>
                       <td>
-                        {item.auction?.status === 'active' && auctionId && (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => navigate(`/auctions/${auctionId}`)}
-                          >
-                            Lihat Lelang
-                          </button>
-                        )}
+                        {(() => {
+                          const carId = item.auction?.car_id;
+                          if (!carId) return null;
+
+                          // Tentukan apakah lelang masih berlangsung
+                          const endTime = item.auction?.end_time;
+                          const isStillActive = status === 'ongoing' || (
+                            endTime && new Date(endTime) > new Date()
+                          );
+
+                          if (isStillActive) {
+                            return (
+                              <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => navigate(`/cars/${carId}`, {
+                                  state: { fromHistory: true, kind: 'bid', won: false }
+                                })}
+                              >
+                                Lihat Lelang
+                              </button>
+                            );
+                          }
+                          // Untuk lelang selesai — kirim info apakah menang
+                          return (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => navigate(`/cars/${carId}`, {
+                                state: { fromHistory: true, kind: 'bid', won: status === 'won' }
+                              })}
+                            >
+                              {status === 'won' ? '🏆 Lihat Kendaraan Saya' : 'Lihat Detail'}
+                            </button>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
                 }
 
-                // purchase (buy_now) — coba dari response, fallback ke AuctionContext cars via car_id
                 const carFromCtx = item.car_id
-                  ? cars.find((c) => String(c.id) === String(item.car_id))
+                  ? cars.find((car) => String(car.id) === String(item.car_id))
                   : null;
                 const car = item.car || item.auction?.car || carFromCtx;
+
                 return (
                   <tr key={`purchase-${item.id}`}>
-                    <td><CarThumb car={car} /></td>
                     <td>
-                      <span className="badge badge-primary" style={{ gap: 4 }}>
+                      <CarThumb car={car} />
+                    </td>
+                    <td>
+                      <span className="badge badge-info history-kind-badge">
                         <ShoppingCart size={11} /> Beli Langsung
                       </span>
                     </td>
-                    <td style={{ fontWeight: 700, color: 'var(--success)' }}>
+                    <td className="history-amount history-amount-purchase">
                       {formatRupiah(item.amount)}
                     </td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <td className="history-time-cell">
+                      <div className="history-time">
                         <Clock size={12} />
                         {new Date(item.created_at || item.transaction_date).toLocaleString('id-ID')}
                       </div>
@@ -262,7 +348,23 @@ export default function BidHistoryPage() {
                     <td>
                       <span className="badge badge-success">✓ Berhasil</span>
                     </td>
-                    <td />
+                    <td>
+                      {(() => {
+                        // Cari car id dari berbagai sumber
+                        const targetCarId = car?.id || item.car_id;
+                        if (!targetCarId) return null;
+                        return (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => navigate(`/cars/${targetCarId}`, {
+                              state: { fromHistory: true, kind: 'purchase' }
+                            })}
+                          >
+                            🛒 Lihat Kendaraan Saya
+                          </button>
+                        );
+                      })()}
+                    </td>
                   </tr>
                 );
               })}

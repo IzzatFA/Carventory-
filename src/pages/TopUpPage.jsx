@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { formatRupiah } from '../lib/utils';
 import './TopUpPage.css';
 
+const TOPUP_MIN_AMOUNT = 10000;
+const TOPUP_MAX_AMOUNT = 100000000;
 const QUICK_AMOUNTS = [1000000, 2500000, 5000000, 10000000];
 
 const TOPUP_METHODS = [
@@ -39,9 +41,13 @@ export default function TopUpPage() {
 
   const topUpAmount = parseInt((selectedAmount || amount).replace(/\D/g, ''), 10) || 0;
   const methodName = TOPUP_METHODS.find((method) => method.id === selectedMethod)?.name;
+  const amountError = topUpAmount > TOPUP_MAX_AMOUNT
+    ? `Maksimum top up ${formatRupiah(TOPUP_MAX_AMOUNT)} per transaksi`
+    : '';
+  const isTopUpInvalid = !topUpAmount || topUpAmount < TOPUP_MIN_AMOUNT || topUpAmount > TOPUP_MAX_AMOUNT || !selectedMethod;
 
   const handleConfirm = () => {
-    if (!topUpAmount || topUpAmount < 10000 || !selectedMethod) return;
+    if (isTopUpInvalid) return;
     setStep(2);
   };
 
@@ -164,7 +170,7 @@ export default function TopUpPage() {
         <div className="topup-amount-panel">
           <div>
             <h2>Pilih Nominal</h2>
-            <p>Minimum top up Rp 10.000</p>
+            <p>Minimum top up Rp 10.000, maksimum {formatRupiah(TOPUP_MAX_AMOUNT)}</p>
           </div>
 
           <div className="topup-amount-grid">
@@ -195,12 +201,13 @@ export default function TopUpPage() {
               }}
             />
           </label>
+          {amountError && <p className="topup-input-error">{amountError}</p>}
 
           <button
             className="topup-pay-button"
             type="button"
             onClick={handleConfirm}
-            disabled={!topUpAmount || topUpAmount < 10000 || !selectedMethod}
+            disabled={isTopUpInvalid}
           >
             <CreditCard size={20} />
             Lanjutkan Pembayaran

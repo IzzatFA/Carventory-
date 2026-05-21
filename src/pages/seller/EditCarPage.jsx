@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, ImagePlus, Save, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CalendarClock, ImagePlus, RotateCcw, Save, ShieldCheck, XCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
 import { categoryLabel, formatRupiah } from '../../lib/utils';
@@ -19,6 +19,8 @@ const emptyForm = {
   location: '',
   description: '',
   category: 'penumpang',
+  start_time: '',
+  end_time: '',
 };
 
 const categories = [
@@ -34,18 +36,43 @@ const formatRupiahInput = (value) => {
   return digits ? formatRupiah(Number(digits)) : '';
 };
 
+const formatDateTimeLocal = (value) => {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const pad = (number) => String(number).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const getTodayStartDateTimeLocal = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return formatDateTimeLocal(today);
+};
+
 export default function EditCarPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { cars, refreshData } = useAuction();
+  const { cars, auctions, refreshData } = useAuction();
   const [form, setForm] = useState(emptyForm);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [saving, setSaving] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
   const [error, setError] = useState('');
+  const minAuctionDateTime = getTodayStartDateTimeLocal();
 
   const car = cars.find((item) => String(item.id) === id);
+  const auction = auctions.find((item) => String(item.car_id) === id);
   const canEdit = currentUser && car && (
     currentUser.role === 'admin' || Number(car.seller_id) === Number(currentUser.id)
   );
@@ -65,8 +92,10 @@ export default function EditCarPage() {
       location: car.location || '',
       description: car.description || '',
       category: car.category || 'penumpang',
+      start_time: formatDateTimeLocal(auction?.start_time),
+      end_time: formatDateTimeLocal(auction?.end_time),
     });
-  }, [car]);
+  }, [car, auction]);
 
   useEffect(() => {
     return () => {
@@ -119,6 +148,14 @@ export default function EditCarPage() {
 
   const carName = car.model ? `${car.brand} ${car.model}` : car.name;
   const isVerified = car.is_verified === true;
+  const isRejected = car.status === 'rejected';
+  const statusTone = isRejected ? 'rejected' : isVerified ? 'active' : 'upcoming';
+  const statusLabel = isRejected ? 'Ditolak' : isVerified ? 'Sudah Diverifikasi' : 'Belum Diverifikasi';
+  const statusCopy = isRejected
+    ? 'Listing ini ditolak admin. Perbaiki data kendaraan, lalu ajukan kembali untuk masuk antrean review.'
+    : isVerified
+      ? 'Kendaraan ini sudah diverifikasi oleh admin dan dapat tampil sebagai listing aktif.'
+      : 'Kendaraan masih menunggu review admin. Perubahan data dapat membuat admin perlu mengecek ulang.';
 
   const setField = (key) => (event) => {
     setForm((current) => ({ ...current, [key]: event.target.value }));
@@ -144,6 +181,21 @@ export default function EditCarPage() {
     setSaving(true);
     setError('');
 
+    if (
+      (form.start_time && new Date(form.start_time) < new Date(minAuctionDateTime)) ||
+      (form.end_time && new Date(form.end_time) < new Date(minAuctionDateTime))
+    ) {
+      setError('Jadwal lelang tidak boleh sebelum hari ini.');
+      setSaving(false);
+      return;
+    }
+
+    if (form.start_time && form.end_time && new Date(form.end_time) <= new Date(form.start_time)) {
+      setError('Waktu selesai lelang harus setelah waktu mulai.');
+      setSaving(false);
+      return;
+    }
+
     const payload = new FormData();
     Object.entries({
       brand: form.brand.trim(),
@@ -156,6 +208,8 @@ export default function EditCarPage() {
       location: form.location.trim(),
       description: form.description.trim(),
       category: form.category,
+      start_time: form.start_time ? new Date(form.start_time).toISOString() : '',
+      end_time: form.end_time ? new Date(form.end_time).toISOString() : '',
     }).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         payload.append(key, value);
@@ -174,6 +228,20 @@ export default function EditCarPage() {
       setError(err.response?.data?.message || 'Gagal menyimpan perubahan kendaraan.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResubmit = async () => {
+    setResubmitting(true);
+    setError('');
+
+    try {
+      await api.put(`/cars/${car.id}`, { status: 'pending' });
+      await refreshData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengajukan ulang kendaraan.');
+    } finally {
+      setResubmitting(false);
     }
   };
 
@@ -216,26 +284,36 @@ export default function EditCarPage() {
           </div>
 
           <aside className="auction-panel edit-status-panel" aria-label="Status verifikasi">
-            <div className="auction-status-line" data-status={isVerified ? 'active' : 'upcoming'}>
+            <div className="auction-status-line" data-status={statusTone}>
               <span className="auction-status-dot" />
               <span>Status Kendaraan</span>
             </div>
 
             <div className="auction-meta-card">
               <span>Verifikasi Admin</span>
-              <strong>{isVerified ? 'Sudah Diverifikasi' : 'Belum Diverifikasi'}</strong>
+              <strong>{statusLabel}</strong>
             </div>
 
             <div className="edit-status-copy">
-              {isVerified
-                ? 'Kendaraan ini sudah diverifikasi oleh admin dan dapat tampil sebagai listing aktif.'
-                : 'Kendaraan masih menunggu review admin. Perubahan data dapat membuat admin perlu mengecek ulang.'}
+              {statusCopy}
             </div>
 
-            <div className={`edit-status-badge ${isVerified ? 'verified' : 'pending'}`}>
-              <ShieldCheck size={18} />
-              {isVerified ? 'Terverifikasi' : 'Menunggu Verifikasi'}
+            <div className={`edit-status-badge ${isRejected ? 'rejected' : isVerified ? 'verified' : 'pending'}`}>
+              {isRejected ? <XCircle size={18} /> : <ShieldCheck size={18} />}
+              {isRejected ? 'Ditolak Admin' : isVerified ? 'Terverifikasi' : 'Menunggu Verifikasi'}
             </div>
+
+            {isRejected && (
+              <button
+                className="btn btn-primary edit-resubmit-button"
+                type="button"
+                onClick={handleResubmit}
+                disabled={resubmitting || saving}
+              >
+                <RotateCcw size={16} />
+                {resubmitting ? 'Mengajukan...' : 'Ajukan Kembali'}
+              </button>
+            )}
           </aside>
         </div>
       </section>
@@ -345,6 +423,38 @@ export default function EditCarPage() {
                 </label>
               </section>
             </div>
+
+            <section className="edit-form-section edit-auction-section">
+              <div className="edit-section-title">
+                <CalendarClock size={18} />
+                <h3>Jadwal Lelang</h3>
+              </div>
+              <div className="edit-input-grid two">
+                <label>
+                  <span className="input-label">Mulai Lelang</span>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    min={minAuctionDateTime}
+                    value={form.start_time}
+                    onChange={setField('start_time')}
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span className="input-label">Selesai Lelang</span>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    min={form.start_time || minAuctionDateTime}
+                    value={form.end_time}
+                    onChange={setField('end_time')}
+                    required
+                  />
+                </label>
+              </div>
+            </section>
           </div>
 
           <button className="btn btn-primary edit-save-button" type="submit" disabled={saving}>

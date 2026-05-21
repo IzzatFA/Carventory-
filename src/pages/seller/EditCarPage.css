@@ -1,7 +1,31 @@
 @import '../admin/ReviewCarPage.css';
 
+:root {
+  --edit-page-sidebar-gap: 128px;
+}
+
 .edit-car-page .detail-hero {
   border-bottom: 0;
+}
+
+@media (min-width: 769px) {
+  .edit-car-page {
+    margin-left: var(--edit-page-sidebar-gap);
+    width: calc(100% - var(--edit-page-sidebar-gap));
+  }
+
+  .edit-car-page .car-detail-topbar-inner,
+  .edit-car-page .edit-page-heading,
+  .edit-car-page .detail-hero-inner,
+  .edit-car-page .edit-form-body {
+    max-width: calc(var(--max-w) + 48px);
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --edit-page-sidebar-gap: 104px;
+  }
 }
 
 .edit-page-heading {
@@ -52,6 +76,28 @@
   background: rgba(245, 158, 11, 0.12);
   color: var(--warning);
   border: 1px solid rgba(245, 158, 11, 0.24);
+}
+
+.edit-car-page .auction-status-line[data-status='rejected'] {
+  color: var(--danger);
+}
+
+.edit-status-badge.rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.26);
+}
+
+.edit-resubmit-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  background: var(--orange);
+  border-radius: 10px;
+}
+
+.edit-resubmit-button:hover {
+  background: var(--orange-dark);
 }
 
 .edit-form-body {
@@ -166,6 +212,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.edit-input-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .edit-section-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -177,6 +227,28 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.edit-auction-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.edit-section-title h3 {
+  margin-bottom: 0;
+}
+
+.edit-section-title svg {
+  color: var(--orange);
+  flex-shrink: 0;
 }
 
 .edit-form-section .input {
@@ -208,6 +280,7 @@
 
 @media (max-width: 900px) {
   .edit-input-grid.three,
+  .edit-input-grid.two,
   .edit-section-pair {
     grid-template-columns: 1fr;
   }

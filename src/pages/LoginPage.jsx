@@ -36,7 +36,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-shell">
         <section className="login-brand-panel" aria-label="Carventory">
-          <div className="login-logo-mark" aria-hidden="true" />
+          <img className="login-logo-mark" src="/Logo.svg" alt="" aria-hidden="true" />
           <div className="login-brand-name">CARVENTORY</div>
         </section>
 

@@ -55,7 +55,7 @@ export default function RegisterPage() {
     <div className="register-page">
       <div className="register-shell">
         <section className="register-brand-panel" aria-label="Carventory">
-          <div className="register-logo-mark" aria-hidden="true" />
+          <img className="register-logo-mark" src="/Logo.svg" alt="" aria-hidden="true" />
           <div className="register-brand-name">CARVENTORY</div>
         </section>
 

@@ -23,27 +23,18 @@
     background: none;
     border: none;
     color: #ffffff;
-    text-align: left;
-    padding: 0 2px;
+    display: flex;
+    justify-content: center;
+    padding: 0;
     margin-bottom: 28px;
     cursor: pointer;
     font-family: inherit;
 }
 
-.sidebar-logo-main {
+.sidebar-logo-image {
     display: block;
-    font-size: 13px;
-    font-weight: 900;
-    line-height: 1.15;
-    letter-spacing: -0.2px;
-}
-
-.sidebar-logo-sub {
-    display: block;
-    margin-top: 3px;
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 1.15;
+    width: 96px;
+    height: auto;
 }
 
 /* Login / User */
@@ -173,9 +164,8 @@
         padding: 10px 6px;
     }
 
-    .sidebar-logo-main,
-    .sidebar-logo-sub {
-        font-size: 11px;
+    .sidebar-logo-image {
+        width: 82px;
     }
 
     .sidebar-user-text span,

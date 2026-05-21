@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, ImagePlus, Save } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CalendarClock, ImagePlus, Save } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAuction } from '../../context/AuctionContext';
 import { formatRupiah } from '../../lib/utils';
@@ -17,6 +17,8 @@ const emptyForm = {
   engine_number: '',
   starting_price: '',
   buy_now_price: '',
+  start_time: '',
+  end_time: '',
   description: '',
 };
 
@@ -33,6 +35,28 @@ const formatRupiahInput = (value) => {
   return digits ? formatRupiah(Number(digits)) : '';
 };
 
+const formatDateTimeLocal = (value) => {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const pad = (number) => String(number).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const getTodayStartDateTimeLocal = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return formatDateTimeLocal(today);
+};
+
 export default function AddCarPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -42,6 +66,7 @@ export default function AddCarPage() {
   const [imagePreview, setImagePreview] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const minAuctionDateTime = getTodayStartDateTimeLocal();
 
   useEffect(() => {
     return () => {
@@ -87,6 +112,21 @@ export default function AddCarPage() {
     setSaving(true);
     setError('');
 
+    if (
+      (form.start_time && new Date(form.start_time) < new Date(minAuctionDateTime)) ||
+      (form.end_time && new Date(form.end_time) < new Date(minAuctionDateTime))
+    ) {
+      setError('Jadwal lelang tidak boleh sebelum hari ini.');
+      setSaving(false);
+      return;
+    }
+
+    if (form.start_time && form.end_time && new Date(form.end_time) <= new Date(form.start_time)) {
+      setError('Waktu selesai lelang harus setelah waktu mulai.');
+      setSaving(false);
+      return;
+    }
+
     const payload = new FormData();
     Object.entries({
       brand: form.brand.trim(),
@@ -98,6 +138,8 @@ export default function AddCarPage() {
       engine_number: form.engine_number,
       starting_price: form.starting_price,
       buy_now_price: form.buy_now_price,
+      start_time: form.start_time ? new Date(form.start_time).toISOString() : '',
+      end_time: form.end_time ? new Date(form.end_time).toISOString() : '',
       description: form.description.trim(),
     }).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -224,6 +266,38 @@ export default function AddCarPage() {
                 </label>
               </section>
             </div>
+
+            <section className="edit-form-section add-auction-section">
+              <div className="add-section-title">
+                <CalendarClock size={18} />
+                <h3>Jadwal Lelang</h3>
+              </div>
+              <div className="edit-input-grid two">
+                <label>
+                  <span className="input-label">Mulai Lelang</span>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    min={minAuctionDateTime}
+                    value={form.start_time}
+                    onChange={setField('start_time')}
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span className="input-label">Selesai Lelang</span>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    min={form.start_time || minAuctionDateTime}
+                    value={form.end_time}
+                    onChange={setField('end_time')}
+                    required
+                  />
+                </label>
+              </div>
+            </section>
           </div>
 
           <button className="btn btn-primary edit-save-button" type="submit" disabled={saving}>

@@ -21,8 +21,10 @@ const transactionService = {
       .from('transaction')
       .insert([{
         auction_id,
+        user_id: auction.winner_id,
         amount,
         payment_status: payment_status || 'pending',
+        type: 'auction_payment',
         transaction_date: new Date().toISOString()
       }])
       .select()
@@ -71,11 +73,9 @@ const transactionService = {
   async getMyTransactions(userId, page = 1, limit = 10, type = null) {
     const offset = (page - 1) * limit;
 
-    // Gunakan select sederhana agar tidak crash jika kolom car_id belum ada di DB.
-    // Frontend akan resolve info mobil dari AuctionContext jika car_id tersedia.
     let query = supabase
       .from('transaction')
-      .select('*', { count: 'exact' })
+      .select('*, car:cars(id, brand, model, year, image_url), auction:auction(id, car:cars(id, brand, model, year, image_url))', { count: 'exact' })
       .eq('user_id', userId)
       .order('transaction_date', { ascending: false })
       .range(offset, offset + limit - 1);
